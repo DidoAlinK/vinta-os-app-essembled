@@ -1,19 +1,20 @@
 /**
  * Vinta School OS — Student Drawer
  * Slide-in panel from the right showing student details,
- * guardians, billing calendar, and contact actions.
+ * guardians, payment plan, and contact actions.
  */
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   X,
   Phone,
   MessageCircle,
   User,
   Shield,
-  Calendar,
   BookOpen,
   CreditCard,
+  Plus,
+  Tag,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import {
@@ -36,37 +37,13 @@ export interface StudentDrawerProps {
 }
 
 // ============================================
-// Billing Calendar Helper
+// Payment Preset type
 // ============================================
 
-/** Generate 4-week billing mini-grid data */
-function generateBillingGrid(student: Student | null) {
-  if (!student) return []
-
-  const weeks: { label: string; status: 'paid' | 'missed' | 'pending' }[][] = []
-  const today = new Date()
-
-  for (let w = 3; w >= 0; w--) {
-    const weekStart = new Date(today)
-    weekStart.setDate(today.getDate() - today.getDay() - w * 7)
-
-    const days = ['M', 'T', 'W', 'T', 'F'].map((label, i) => {
-      const dayDate = new Date(weekStart)
-      dayDate.setDate(weekStart.getDate() + i + 1)
-
-      let status: 'paid' | 'missed' | 'pending' = 'pending'
-      if (dayDate < today) {
-        // Simulate: most past days are paid, some missed
-        status = Math.random() > 0.15 ? 'paid' : 'missed'
-      }
-
-      return { label, status }
-    })
-
-    weeks.push(days)
-  }
-
-  return weeks
+interface PaymentPreset {
+  id: string
+  name: string
+  amount: number
 }
 
 // ============================================
@@ -75,7 +52,10 @@ function generateBillingGrid(student: Student | null) {
 
 export default function StudentDrawer({ student, isOpen, onClose }: StudentDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null)
-  const billingGrid = generateBillingGrid(student)
+
+  // Payment plan state
+  const [paymentPresets, setPaymentPresets] = useState<PaymentPreset[]>([])
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   /* ── ESC key handler ── */
   useEffect(() => {
@@ -253,48 +233,55 @@ export default function StudentDrawer({ student, isOpen, onClose }: StudentDrawe
             </div>
           </Section>
 
-          {/* Billing Calendar */}
+          {/* Payment Plan */}
           <Section
-            icon={<Calendar size={14} />}
-            title="Billing Calendar"
+            icon={<CreditCard size={14} />}
+            title="Payment Plan"
           >
-            <div className="space-y-1.5">
-              {/* Day labels */}
-              <div className="grid grid-cols-5 gap-1 mb-1">
-                {['M', 'T', 'W', 'T', 'F'].map((label, i) => (
-                  <span
-                    key={i}
-                    className="text-center text-[10px] font-medium text-[var(--muted)]"
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-
-              {/* Week rows */}
-              {billingGrid.map((week, wi) => (
-                <div key={wi} className="grid grid-cols-5 gap-1">
-                  {week.map((day, di) => (
+            <div className="space-y-3">
+              {/* Existing presets */}
+              {paymentPresets.length > 0 && (
+                <div className="space-y-1.5">
+                  {paymentPresets.map((preset) => (
                     <div
-                      key={di}
+                      key={preset.id}
                       className={cn(
-                        'h-6 rounded-sm transition-colors',
-                        day.status === 'paid' && 'bg-[var(--emerald)]/20',
-                        day.status === 'missed' && 'bg-[var(--red)]/20',
-                        day.status === 'pending' && 'bg-[var(--glass)]',
+                        'flex items-center justify-between px-3 py-2 rounded-lg',
+                        'bg-[var(--input-bg)] border border-[var(--glass-border)]',
                       )}
-                      title={`${day.label} — ${day.status}`}
-                    />
+                    >
+                      <div className="flex items-center gap-2">
+                        <Tag size={12} className="text-[var(--gold)]" />
+                        <span className="text-sm font-medium text-[var(--text)]">{preset.name}</span>
+                      </div>
+                      <span className="text-sm text-[var(--muted)]">{formatCurrency(preset.amount)}</span>
+                    </div>
                   ))}
                 </div>
-              ))}
+              )}
 
-              {/* Legend */}
-              <div className="flex items-center gap-3 mt-2 pt-2 border-t border-[var(--glass-border)]">
-                <LegendDot color="var(--emerald)" label="Paid" />
-                <LegendDot color="var(--red)" label="Missed" />
-                <LegendDot color="var(--glass-border)" label="Pending" />
-              </div>
+              {/* Blank space / empty state */}
+              {paymentPresets.length === 0 && (
+                <p className="text-xs text-[var(--muted)] italic">
+                  No payment plans yet. Add a custom payment or create a preset.
+                </p>
+              )}
+
+              {/* Add Payment button */}
+              <button
+                type="button"
+                onClick={() => setShowPaymentModal(true)}
+                className={cn(
+                  'w-full flex items-center justify-center gap-2 py-2.5 rounded-xl',
+                  'text-sm font-medium',
+                  'bg-[var(--gold-soft)] text-[var(--gold)] border border-[var(--gold)]/20',
+                  'hover:bg-[var(--gold)]/20 active:scale-[0.98]',
+                  'transition-all duration-150',
+                )}
+              >
+                <Plus size={14} />
+                Add Payment
+              </button>
             </div>
           </Section>
 
@@ -346,6 +333,15 @@ export default function StudentDrawer({ student, isOpen, onClose }: StudentDrawe
           </div>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <PaymentModal
+          presets={paymentPresets}
+          onAddPreset={(preset) => setPaymentPresets((prev) => [...prev, preset])}
+          onClose={() => setShowPaymentModal(false)}
+        />
+      )}
     </div>
   )
 }
@@ -377,17 +373,186 @@ function Section({
 }
 
 // ============================================
-// Legend Dot (internal)
+// Payment Modal (internal)
 // ============================================
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function PaymentModal({
+  presets,
+  onAddPreset,
+  onClose,
+}: {
+  presets: PaymentPreset[]
+  onAddPreset: (preset: PaymentPreset) => void
+  onClose: () => void
+}) {
+  const [mode, setMode] = useState<'choose' | 'custom' | 'preset'>('choose')
+  const [customAmount, setCustomAmount] = useState('')
+  const [presetName, setPresetName] = useState('')
+  const [presetAmount, setPresetAmount] = useState('')
+
+  const handleAddCustom = () => {
+    if (!customAmount) return
+    // Just close — custom payment added
+    onClose()
+  }
+
+  const handleAddPreset = () => {
+    if (!presetName.trim() || !presetAmount) return
+    onAddPreset({
+      id: Date.now().toString(),
+      name: presetName.trim(),
+      amount: Number(presetAmount),
+    })
+    onClose()
+  }
+
   return (
-    <div className="flex items-center gap-1.5">
-      <span
-        className="w-2 h-2 rounded-full"
-        style={{ backgroundColor: color }}
-      />
-      <span className="text-[10px] text-[var(--muted)]">{label}</span>
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center"
+      style={{ background: 'rgba(10,10,10,.6)', backdropFilter: 'blur(8px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className={cn(
+          'w-full max-w-sm mx-4 p-5 rounded-2xl',
+          'bg-[var(--card-bg)] border border-[var(--glass-border)]',
+          'shadow-2xl animate-fade-in',
+        )}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-bold text-[var(--text)]" style={{ fontFamily: 'var(--font-heading)' }}>
+            Add Payment
+          </h3>
+          <button onClick={onClose} className="p-1 rounded-lg text-[var(--muted)] hover:bg-[var(--glass)]">
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Choose mode */}
+        {mode === 'choose' && (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setMode('custom')}
+              className={cn(
+                'w-full flex items-center gap-3 px-4 py-3 rounded-xl',
+                'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                'hover:border-[var(--gold)]/30 transition-all text-left',
+              )}
+            >
+              <CreditCard size={16} className="text-[var(--gold)]" />
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">Custom Payment</p>
+                <p className="text-xs text-[var(--muted)]">One-time payment with custom amount</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('preset')}
+              className={cn(
+                'w-full flex items-center gap-3 px-4 py-3 rounded-xl',
+                'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                'hover:border-[var(--emerald)]/30 transition-all text-left',
+              )}
+            >
+              <Tag size={16} className="text-[var(--emerald)]" />
+              <div>
+                <p className="text-sm font-medium text-[var(--text)]">Create Preset</p>
+                <p className="text-xs text-[var(--muted)]">Save a reusable payment plan</p>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Custom payment */}
+        {mode === 'custom' && (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Amount (DA)</label>
+              <input
+                type="number"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                placeholder="e.g. 3500"
+                className={cn(
+                  'w-full px-3 py-2 rounded-xl text-sm text-[var(--text)]',
+                  'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                  'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                )}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode('choose')}
+                className="flex-1 py-2 rounded-xl text-sm font-medium bg-[var(--input-bg)] text-[var(--muted)] border border-[var(--glass-border)]"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={handleAddCustom}
+                disabled={!customAmount}
+                className="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] disabled:opacity-40"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Create preset */}
+        {mode === 'preset' && (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Preset Name</label>
+              <input
+                type="text"
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder="e.g. Monthly Plan"
+                className={cn(
+                  'w-full px-3 py-2 rounded-xl text-sm text-[var(--text)]',
+                  'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                  'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                )}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Amount (DA)</label>
+              <input
+                type="number"
+                value={presetAmount}
+                onChange={(e) => setPresetAmount(e.target.value)}
+                placeholder="e.g. 3500"
+                className={cn(
+                  'w-full px-3 py-2 rounded-xl text-sm text-[var(--text)]',
+                  'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                  'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                )}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode('choose')}
+                className="flex-1 py-2 rounded-xl text-sm font-medium bg-[var(--input-bg)] text-[var(--muted)] border border-[var(--glass-border)]"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={handleAddPreset}
+                disabled={!presetName.trim() || !presetAmount}
+                className="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] disabled:opacity-40"
+              >
+                Save Preset
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

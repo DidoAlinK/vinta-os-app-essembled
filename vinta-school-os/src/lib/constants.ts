@@ -112,9 +112,9 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
 // ============================================
 
 /**
- * Calendar grid hours (8AM - 9PM)
+ * Calendar grid hours (7AM - 9PM)
  */
-export const CALENDAR_HOURS = Array.from({ length: 14 }, (_, i) => i + 8)
+export const CALENDAR_HOURS = Array.from({ length: 15 }, (_, i) => i + 7)
 
 /**
  * Hour height in pixels

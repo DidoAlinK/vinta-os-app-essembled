@@ -20,6 +20,7 @@ export function ProfileCreator({ onClose, onCreated }: ProfileCreatorProps) {
   const [phone, setPhone] = useState('')
   const [pin, setPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
+  const [ownerPin, setOwnerPin] = useState('')
   const [selectedPreset, setSelectedPreset] = useState(0)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -31,6 +32,7 @@ export function ProfileCreator({ onClose, onCreated }: ProfileCreatorProps) {
     else if (pin.length !== 4) e.pin = 'PIN must be 4 digits'
     else if (!/^\d{4}$/.test(pin)) e.pin = 'PIN must be numeric'
     if (pin !== confirmPin) e.confirmPin = 'PINs do not match'
+    if (!ownerPin || ownerPin.length !== 4) e.ownerPin = 'Owner PIN is required (4 digits)'
     if (phone) {
       const cleaned = phone.replace(/[^\d]/g, '')
       if (cleaned.length < 9) e.phone = 'Enter a valid number'
@@ -54,6 +56,7 @@ export function ProfileCreator({ onClose, onCreated }: ProfileCreatorProps) {
         phone: formattedPhone,
         avatar_color_1: colors[0],
         avatar_color_2: colors[1],
+        owner_pin: ownerPin,
       })
 
       // Reload profiles list
@@ -189,6 +192,33 @@ export function ProfileCreator({ onClose, onCreated }: ProfileCreatorProps) {
           {errors.phone && <p className="text-[11px] mt-1" style={{ color: 'var(--red)' }}>{errors.phone}</p>}
         </div>
 
+        {/* Owner PIN (confirmation) */}
+        <div className="mb-4">
+          <label className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--muted)' }}>
+            <Crown size={12} className="inline mr-1" />
+            Your PIN (confirm identity)
+          </label>
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            placeholder="••••"
+            value={ownerPin}
+            onChange={e => {
+              const val = e.target.value.replace(/\D/g, '').slice(0, 4)
+              setOwnerPin(val)
+              setErrors(prev => ({ ...prev, ownerPin: '' }))
+            }}
+            className="w-full px-3 py-2.5 rounded-xl text-[13px] outline-none transition-all tracking-widest"
+            style={{
+              background: 'var(--input-bg)',
+              color: 'var(--text)',
+              border: errors.ownerPin ? '1px solid var(--red)' : '1px solid var(--glass-border)',
+            }}
+          />
+          {errors.ownerPin && <p className="text-[11px] mt-1" style={{ color: 'var(--red)' }}>{errors.ownerPin}</p>}
+        </div>
+
         {/* PIN */}
         <div className="mb-4">
           <label className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--muted)' }}>PIN (4 digits)</label>
@@ -248,7 +278,7 @@ export function ProfileCreator({ onClose, onCreated }: ProfileCreatorProps) {
           </button>
           <button
             onClick={handleCreate}
-            disabled={loading || !name.trim() || !pin || pin.length !== 4 || pin !== confirmPin}
+            disabled={loading || !name.trim() || !pin || pin.length !== 4 || pin !== confirmPin || !ownerPin || ownerPin.length !== 4}
             className="flex-1 py-2.5 rounded-xl text-[13px] font-medium text-white disabled:opacity-50 transition-all hover:opacity-90 disabled:hover:opacity-50"
             style={{ background: 'var(--gold)' }}
           >

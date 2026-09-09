@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { cn } from '../../lib/cn'
+import { useAuthStore } from '../../stores/authStore'
 import { Card, CardHeader, CardBody } from '../../components/ui/Card'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
@@ -13,12 +14,16 @@ export interface AcademyProfileProps {
   onUpdate: (data: Partial<Academy>) => void
 }
 
-/* ─── Weekend options ─── */
+/* ─── Working days (Sun–Sat) ─── */
 
-const WEEKEND_DAYS = [
-  { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' },
-  { value: 0, label: 'Sunday' },
+const WORKING_DAYS = [
+  { value: 0, label: 'Sun' },
+  { value: 1, label: 'Mon' },
+  { value: 2, label: 'Tue' },
+  { value: 3, label: 'Wed' },
+  { value: 4, label: 'Thu' },
+  { value: 5, label: 'Fri' },
+  { value: 6, label: 'Sat' },
 ]
 
 const TERM_OPTIONS = [
@@ -30,12 +35,15 @@ const TERM_OPTIONS = [
 /* ─── Component ─── */
 
 export function AcademyProfile({ academy, onUpdate }: AcademyProfileProps) {
+  const user = useAuthStore((s) => s.user)
+
+  // Pull initial data from auth store user if academy data is empty
   const [form, setForm] = useState({
-    name: academy.name,
-    phone: academy.phone,
-    email: academy.email,
-    address: academy.address,
-    weekend_day: academy.weekend_day,
+    name: academy.name || user?.name || '',
+    phone: academy.phone || user?.phone || '',
+    email: academy.email || user?.email || '',
+    address: academy.address || '',
+    weekend_day: academy.weekend_day, // kept for backend compatibility
     current_term: academy.current_term,
   })
   const [isSaving, setIsSaving] = useState(false)
@@ -102,27 +110,25 @@ export function AcademyProfile({ academy, onUpdate }: AcademyProfileProps) {
         <CardHeader title="Schedule" />
         <CardBody>
           <div className="flex flex-col gap-4">
-            {/* Weekend Day */}
+            {/* Working days — Sun to Sat, all selected by default */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-[var(--text)] font-[family-name:var(--font-heading)]">
-                Weekend Day
+                Working Days
               </label>
-              <div className="flex gap-2">
-                {WEEKEND_DAYS.map((day) => (
-                  <button
+              <p className="text-xs text-[var(--muted)] mb-1">
+                Open 7:00 AM – 9:00 PM, Sunday through Saturday
+              </p>
+              <div className="flex gap-1.5">
+                {WORKING_DAYS.map((day) => (
+                  <div
                     key={day.value}
-                    type="button"
-                    onClick={() => handleChange('weekend_day', day.value)}
                     className={cn(
-                      'px-4 py-2 text-sm font-medium rounded-[var(--radius-xs)]',
-                      'border transition-all duration-200',
-                      form.weekend_day === day.value
-                        ? 'bg-[var(--gold-soft)] border-[var(--gold)] text-[var(--gold)]'
-                        : 'bg-[var(--input-bg)] border-[var(--glass-border)] text-[var(--muted)] hover:text-[var(--text)]',
+                      'px-3 py-2 text-xs font-medium rounded-lg',
+                      'bg-[var(--emerald-soft)] border border-[var(--emerald)]/20 text-[var(--emerald)]',
                     )}
                   >
                     {day.label}
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>

@@ -276,6 +276,7 @@ export function DashboardPage() {
             viewMode={viewMode}
             onToggleView={handleToggleView}
             isLoading={isLoading}
+            currentDate={currentDate}
           />
         </div>
 

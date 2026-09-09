@@ -182,17 +182,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   // ============================================
-  // Create Profile
+  // Create Profile (requires owner PIN)
   // ============================================
-  createProfile: async (data: CreateProfileRequest): Promise<Profile> => {
+  createProfile: async (data: CreateProfileRequest & { owner_pin?: string }): Promise<Profile> => {
     try {
-      const response = await api.post('/auth/profiles', {
+      const response = await api.post('/auth/create-profile', {
         name: data.name,
         role: data.role,
         pin: data.pin,
         phone: data.phone,
         avatar_color_1: data.avatar_color_1,
         avatar_color_2: data.avatar_color_2,
+        owner_pin: data.owner_pin,
       })
       const profile: Profile = response.data
       return profile

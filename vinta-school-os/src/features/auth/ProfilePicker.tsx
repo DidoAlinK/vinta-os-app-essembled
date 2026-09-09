@@ -64,7 +64,7 @@ export default function ProfilePicker() {
 
       {/* Profiles grid */}
       {!profilesLoading && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 max-w-[640px] w-full animate-fade-in">
+        <div className="flex flex-wrap justify-center gap-6 max-w-[640px] w-full animate-fade-in">
           {profiles.map((profile, index) => {
             const colors = getAvatarColors(profile, index)
             const isHovered = hoveredId === profile.id
@@ -132,7 +132,7 @@ export default function ProfilePicker() {
 
           {/* Empty state: show when no profiles */}
           {profiles.length === 0 && !profilesLoading && (
-            <div className="col-span-full flex flex-col items-center gap-4 py-8">
+            <div className="w-full flex flex-col items-center gap-4 py-8">
               <div
                 className="w-[100px] h-[100px] rounded-[28px] flex items-center justify-center"
                 style={{

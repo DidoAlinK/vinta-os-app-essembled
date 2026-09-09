@@ -115,13 +115,20 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     // Handle 401 Unauthorized — clear tokens and redirect to login
-    // Backend has no refresh endpoint; re-authentication is required
+    // But skip endpoints where 401 is expected (wrong PIN, wrong credentials, initial auth check)
     if (error.response?.status === 401) {
-      const currentPath = window.location.pathname
-      // Don't redirect if already on login page
-      if (currentPath !== '/' && currentPath !== '/login') {
-        tokenStorage.clear()
-        window.location.href = '/'
+      const url = error.config?.url || ''
+      const isExpected401 =
+        url.includes('/auth/verify-pin') ||
+        url.includes('/auth/login') ||
+        url.includes('/auth/me')
+
+      if (!isExpected401) {
+        const currentPath = window.location.pathname
+        if (currentPath !== '/' && currentPath !== '/login') {
+          tokenStorage.clear()
+          window.location.href = '/'
+        }
       }
     }
 

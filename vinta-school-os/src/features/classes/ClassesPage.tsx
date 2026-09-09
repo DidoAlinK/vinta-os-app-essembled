@@ -43,10 +43,9 @@ function AddClassModal({
   isOpen, onClose, onAdd,
 }: {
   isOpen: boolean; onClose: () => void
-  onAdd: (data: { name: string; subject: string; color: string; capacity: number; teacher_id?: string; notes?: string }) => void
+  onAdd: (data: { name: string; color: string; capacity: number; teacher_id?: string; notes?: string }) => void
 }) {
   const [name, setName] = useState('')
-  const [subject, setSubject] = useState('')
   const [color, setColor] = useState(COLOR_PRESETS[0].color)
   const [capacity, setCapacity] = useState(20)
   const [teacherId, setTeacherId] = useState('')
@@ -68,23 +67,22 @@ function AddClassModal({
   }, [isOpen])
 
   const resetAndClose = useCallback(() => {
-    setName(''); setSubject(''); setColor(COLOR_PRESETS[0].color)
+    setName(''); setColor(COLOR_PRESETS[0].color)
     setCapacity(20); setTeacherId(''); setNotes('')
     onClose()
   }, [onClose])
 
   const handleSubmit = useCallback(() => {
-    if (!name.trim() || !subject.trim()) return
+    if (!name.trim()) return
     onAdd({
       name: name.trim(),
-      subject: subject.trim(),
       color,
       capacity,
       teacher_id: teacherId || undefined,
       notes: notes.trim() || undefined,
     })
     resetAndClose()
-  }, [name, subject, color, capacity, teacherId, notes, onAdd, resetAndClose])
+  }, [name, color, capacity, teacherId, notes, onAdd, resetAndClose])
 
   if (!isOpen) return null
 
@@ -126,15 +124,6 @@ function AddClassModal({
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted)' }}>Class Name <span style={{ color: 'var(--red)' }}>*</span></label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Math — CM2" className={inputCls} />
-          </div>
-
-          {/* Subject */}
-          <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted)' }}>Subject <span style={{ color: 'var(--red)' }}>*</span></label>
-            <select value={subject} onChange={e => { setSubject(e.target.value); const preset = COLOR_PRESETS.find(p => p.label === e.target.value); if (preset) setColor(preset.color) }} className={cn(inputCls, 'appearance-none cursor-pointer')}>
-              <option value="">Select subject…</option>
-              {SUBJECT_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
           </div>
 
           {/* Teacher */}
@@ -194,7 +183,7 @@ function AddClassModal({
           <button onClick={resetAndClose} className={cn(cancelBtnCls)}>Cancel</button>
           <button
             onClick={handleSubmit}
-            disabled={!name.trim() || !subject.trim()}
+            disabled={!name.trim()}
             className={cn(
               'flex-1 py-2.5 rounded-xl text-sm font-semibold text-white',
               'bg-gradient-to-r from-[#b3872a] to-[#0f6b4d]',
@@ -260,7 +249,7 @@ export function ClassesPage() {
     setSelectedClass(prev => prev?.id === cls.id ? null : cls)
   }, [])
 
-  const handleAddClass = useCallback(async (data: { name: string; subject: string; color: string; capacity: number; teacher_id?: string; notes?: string }) => {
+  const handleAddClass = useCallback(async (data: { name: string; color: string; capacity: number; teacher_id?: string; notes?: string }) => {
     try {
       const { data: newClass } = await api.post('/classes', data)
       setClasses(prev => [...prev, newClass])
@@ -268,7 +257,7 @@ export function ClassesPage() {
       // Optimistic fallback
       const temp: Class = {
         id: `temp-${Date.now()}`, academy_id: '1',
-        name: data.name, subject: data.subject, color: data.color,
+        name: data.name, subject: '', color: data.color,
         capacity: data.capacity, enrolled_count: 0, teacher_name: '',
         status: 'empty', schedules: [],
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),

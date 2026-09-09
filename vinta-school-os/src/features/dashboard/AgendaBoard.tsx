@@ -24,6 +24,8 @@ interface AgendaBoardProps {
   viewMode: 'week' | 'day'
   onToggleView: () => void
   isLoading?: boolean
+  /** The date currently being viewed (from parent navigation) */
+  currentDate?: Date
 }
 
 interface PositionedSession {
@@ -102,14 +104,18 @@ export function AgendaBoard({
   viewMode,
   onToggleView,
   isLoading = false,
+  currentDate,
 }: AgendaBoardProps) {
   const [now, setNow] = useState(getCurrentHour)
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // Use the currentDate from parent navigation, falling back to today
+  const anchorDate = currentDate ?? new Date()
+
   // Current week dates (or single date for day view)
   const days = useMemo(
-    () => (viewMode === 'week' ? getWeekDates(new Date()) : [new Date()]),
-    [viewMode],
+    () => (viewMode === 'week' ? getWeekDates(anchorDate) : [anchorDate]),
+    [viewMode, anchorDate.toISOString()],
   )
 
   // Group sessions by their date string

@@ -6,10 +6,10 @@ import Appearance from './Appearance'
 import MyAccount from './MyAccount'
 import AcademyProfile from './AcademyProfile'
 import StaffRoles from './StaffRoles'
+import AddStaffModal from './AddStaffModal'
 import BillingConfig from './BillingConfig'
 import Automations from './Automations'
 import DataExport from './DataExport'
-import Subscription from './Subscription'
 import DangerZone from './DangerZone'
 import {
   Palette,
@@ -19,7 +19,6 @@ import {
   CreditCard,
   Zap,
   Download,
-  Crown,
   AlertTriangle,
   ChevronRight,
   Menu,
@@ -43,7 +42,6 @@ const SECTIONS: SettingsSection[] = [
   { id: 'billing', label: 'Billing Config', icon: <CreditCard className="w-4 h-4" />, roles: ['owner'] },
   { id: 'automations', label: 'Automations', icon: <Zap className="w-4 h-4" />, roles: ['owner'] },
   { id: 'export', label: 'Data & Export', icon: <Download className="w-4 h-4" />, roles: ['owner', 'staff'] },
-  { id: 'subscription', label: 'Subscription', icon: <Crown className="w-4 h-4" />, roles: ['owner'] },
   { id: 'danger', label: 'Danger Zone', icon: <AlertTriangle className="w-4 h-4" />, roles: ['owner'] },
 ]
 
@@ -56,6 +54,7 @@ export function SettingsPage() {
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [showAddStaff, setShowAddStaff] = useState(false)
 
   // TODO: Replace with auth store user role
   const userRole: 'owner' | 'staff' = 'owner'
@@ -70,9 +69,9 @@ export function SettingsPage() {
       setIsLoading(true)
       try {
         const [academyRes, settingsRes, staffRes] = await Promise.all([
-          api.get('/academy'),
-          api.get('/settings'),
-          api.get('/staff'),
+          api.get('/settings/academy'),
+          api.get('/settings/appearance'),
+          api.get('/settings/staff'),
         ])
         if (!cancelled) {
           setAcademy(academyRes.data)
@@ -93,7 +92,7 @@ export function SettingsPage() {
   /* ── Handlers ── */
   const handleUpdateAcademy = async (data: Partial<Academy>) => {
     try {
-      const { data: updated } = await api.patch('/academy', data)
+      const { data: updated } = await api.put('/settings/academy', data)
       setAcademy(updated)
     } catch {
       // Backend unavailable
@@ -102,7 +101,7 @@ export function SettingsPage() {
 
   const handleUpdateSettings = async (data: Partial<AcademySettings>) => {
     try {
-      const { data: updated } = await api.patch('/settings', data)
+      const { data: updated } = await api.put('/settings/appearance', data)
       setSettings(updated)
     } catch {
       // Backend unavailable
@@ -110,13 +109,22 @@ export function SettingsPage() {
   }
 
   const handleAddStaff = () => {
-    // TODO: Open add staff modal
-    console.log('[Settings] Add staff clicked')
+    setShowAddStaff(true)
+  }
+
+  const handleStaffAdded = async () => {
+    // Refresh staff list
+    try {
+      const { data } = await api.get('/settings/staff')
+      setStaff(data.staff ?? data ?? [])
+    } catch {
+      // Backend unavailable
+    }
   }
 
   const handleDeactivateStaff = async (id: string) => {
     try {
-      await api.patch(`/staff/${id}/deactivate`)
+      await api.post(`/settings/staff/${id}/deactivate`)
       setStaff((prev) =>
         prev.map((s) => (s.id === id ? { ...s, is_active: false } : s)),
       )
@@ -312,14 +320,18 @@ export function SettingsPage() {
           {activeSection === 'export' && (
             <DataExport />
           )}
-          {activeSection === 'subscription' && (
-            <Subscription />
-          )}
           {activeSection === 'danger' && (
             <DangerZone />
           )}
         </div>
       </div>
+
+      {/* Add Staff Modal */}
+      <AddStaffModal
+        isOpen={showAddStaff}
+        onClose={() => setShowAddStaff(false)}
+        onAdded={handleStaffAdded}
+      />
     </div>
   )
 }

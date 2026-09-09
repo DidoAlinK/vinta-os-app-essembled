@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { cn } from '../../lib/cn'
 import { Card, CardHeader, CardBody } from '../../components/ui/Card'
 import { Toggle } from '../../components/ui/Toggle'
 import { Sun, Moon, Type, Globe } from 'lucide-react'
+import { useThemeStore } from '../../stores/themeStore'
 import type { AcademySettings } from '../../types/settings'
 
 /* ─── Props ─── */
@@ -42,9 +44,35 @@ function OptionChip({
 /* ─── Component ─── */
 
 export function Appearance({ settings, onUpdate }: AppearanceProps) {
-  const isDark = settings.default_theme === 'dark'
-  const isLarge = settings.default_font_size === 'large'
+  const { theme, setTheme } = useThemeStore()
+  const isDark = theme === 'dark'
+  const fontSize = settings.default_font_size || 'normal'
   const isArabic = settings.default_language === 'ar'
+
+  // Apply font size to document
+  useEffect(() => {
+    const root = document.documentElement
+    switch (fontSize) {
+      case 'small':
+        root.style.fontSize = '13px'
+        break
+      case 'large':
+        root.style.fontSize = '17px'
+        break
+      default:
+        root.style.fontSize = '15px'
+    }
+  }, [fontSize])
+
+  const handleThemeToggle = (checked: boolean) => {
+    const newTheme = checked ? 'dark' : 'light'
+    setTheme(newTheme)
+    onUpdate({ default_theme: newTheme })
+  }
+
+  const handleFontSize = (size: 'small' | 'normal' | 'large') => {
+    onUpdate({ default_font_size: size })
+  }
 
   return (
     <div className="flex flex-col gap-5 max-w-xl">
@@ -57,9 +85,7 @@ export function Appearance({ settings, onUpdate }: AppearanceProps) {
               <Sun className={cn('w-4 h-4', !isDark && 'text-[var(--gold)]')} />
               <Toggle
                 checked={isDark}
-                onCheckedChange={(checked) =>
-                  onUpdate({ default_theme: checked ? 'dark' : 'light' })
-                }
+                onCheckedChange={handleThemeToggle}
               />
               <Moon className={cn('w-4 h-4', isDark && 'text-[var(--gold)]')} />
             </div>
@@ -81,14 +107,19 @@ export function Appearance({ settings, onUpdate }: AppearanceProps) {
           </p>
           <div className="flex gap-2">
             <OptionChip
+              label="Small"
+              selected={fontSize === 'small'}
+              onClick={() => handleFontSize('small')}
+            />
+            <OptionChip
               label="Normal"
-              selected={!isLarge}
-              onClick={() => onUpdate({ default_font_size: 'normal' })}
+              selected={fontSize === 'normal'}
+              onClick={() => handleFontSize('normal')}
             />
             <OptionChip
               label="Large"
-              selected={isLarge}
-              onClick={() => onUpdate({ default_font_size: 'large' })}
+              selected={fontSize === 'large'}
+              onClick={() => handleFontSize('large')}
             />
           </div>
         </CardBody>
