@@ -1,0 +1,980 @@
+ File "/home/reyushi/repos/academy/Vinta-OS-backend/app/routes/auth.py", line 11, in <module>
+    from app.schemas.auth import (
+    ...<4 lines>...
+    )
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/app/schemas/auth.py", line 9, in <module>
+    class SignupRequestSchema(Schema):
+    ...<3 lines>...
+        password = fields.String(required=True, description="Owner password", example="SecurePass123!")
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/app/schemas/auth.py", line 11, in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+TypeError: Field.__init__() got an unexpected keyword argument 'description'
+
+~/repos/academy/Vinta-OS-backend main*
+venv ❯ pytest -v
+======================================================== test session starts ========================================================
+platform linux -- Python 3.14.7, pytest-8.4.1, pluggy-1.6.0 -- /home/reyushi/repos/academy/Vinta-OS-backend/venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/reyushi/repos/academy/Vinta-OS-backend
+configfile: pytest.ini
+testpaths: tests
+plugins: cov-6.2.1, flask-1.3.0
+collected 55 items
+
+tests/integration/test_attendance_flow.py::TestCheckInFlow::test_check_in_student ERROR                                       [  1%]
+tests/integration/test_attendance_flow.py::TestCheckInFlow::test_check_in_creates_activity_log ERROR                          [  3%]
+tests/integration/test_attendance_flow.py::TestCheckOutFlow::test_check_out_student ERROR                                     [  5%]
+tests/integration/test_attendance_flow.py::TestCheckOutFlow::test_check_out_without_check_in_fails ERROR                      [  7%]
+tests/integration/test_attendance_flow.py::TestSessionRoster::test_get_empty_roster ERROR                                     [  9%]
+tests/integration/test_attendance_flow.py::TestSessionRoster::test_add_student_to_session ERROR                               [ 10%]
+tests/integration/test_attendance_flow.py::TestSessionRoster::test_duplicate_add_is_idempotent ERROR                          [ 12%]
+tests/integration/test_attendance_flow.py::TestAutoCheckout::test_auto_checkout_triggers ERROR                                [ 14%]
+tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session ERROR                                           [ 16%]
+tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session_snaps_to_5min ERROR                             [ 18%]
+tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session_missing_fields ERROR                            [ 20%]
+tests/integration/test_calendar_drag.py::TestSessionCRUD::test_get_week_sessions ERROR                                        [ 21%]
+tests/integration/test_calendar_drag.py::TestSessionCRUD::test_get_day_sessions ERROR                                         [ 23%]
+tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_to_different_time ERROR                       [ 25%]
+tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_to_different_day ERROR                        [ 27%]
+tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_snaps_time ERROR                              [ 29%]
+tests/integration/test_calendar_drag.py::TestSessionDragMove::test_cancel_session ERROR                                       [ 30%]
+tests/integration/test_calendar_drag.py::TestScheduleGeneration::test_create_schedule_generates_sessions ERROR                [ 32%]
+tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_cannot_list_other_academy_students ERROR                [ 34%]
+tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_same_academy_access_allowed ERROR                       [ 36%]
+tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_missing_academy_header_returns_400 ERROR                [ 38%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_login_success ERROR                                      [ 40%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_login_invalid_password ERROR                             [ 41%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_login_nonexistent_email ERROR                            [ 43%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_success ERROR                                 [ 45%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_invalid ERROR                                 [ 47%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_missing_academy_header ERROR                  [ 49%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_wrong_academy ERROR                           [ 50%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_protected_route_without_token ERROR                      [ 52%]
+tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_paid_when_paid_date_set ERROR                     [ 54%]
+tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_due_when_not_yet_paid ERROR                       [ 56%]
+tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_overdue_when_past_due ERROR                       [ 58%]
+tests/unit/test_billing_cycles.py::TestAgingBuckets::test_recent_bucket_1_to_7_days PASSED                                    [ 60%]
+tests/unit/test_billing_cycles.py::TestAgingBuckets::test_aging_bucket_8_to_30_days PASSED                                    [ 61%]
+tests/unit/test_billing_cycles.py::TestAgingBuckets::test_critical_bucket_30plus_days PASSED                                  [ 63%]
+tests/unit/test_billing_cycles.py::TestDaysOverdue::test_positive_when_overdue PASSED                                         [ 65%]
+tests/unit/test_billing_cycles.py::TestDaysOverdue::test_zero_when_not_overdue PASSED                                         [ 67%]
+tests/unit/test_billing_cycles.py::TestDaysOverdue::test_zero_when_due_today PASSED                                           [ 69%]
+tests/unit/test_billing_cycles.py::TestPaymentPlans::test_plan_creation ERROR                                                 [ 70%]
+tests/unit/test_billing_cycles.py::TestPaymentPlans::test_term_plan_duration ERROR                                            [ 72%]
+tests/unit/test_payroll_calc.py::TestHourlyPayroll::test_hourly_rate_calculation ERROR                                        [ 74%]
+tests/unit/test_payroll_calc.py::TestHourlyPayroll::test_zero_hours_payroll ERROR                                             [ 76%]
+tests/unit/test_payroll_calc.py::TestPerStudentPayroll::test_per_student_rate_calculation ERROR                               [ 78%]
+tests/unit/test_payroll_calc.py::TestPayrollStatus::test_initial_status_is_pending ERROR                                      [ 80%]
+tests/unit/test_payroll_calc.py::TestPayrollStatus::test_settle_sets_paid_date ERROR                                          [ 81%]
+tests/unit/test_pin_auth.py::TestPinHashing::test_hash_pin_returns_string ERROR                                               [ 83%]
+tests/unit/test_pin_auth.py::TestPinHashing::test_verify_pin_success ERROR                                                    [ 85%]
+tests/unit/test_pin_auth.py::TestPinHashing::test_verify_pin_failure ERROR                                                    [ 87%]
+tests/unit/test_pin_auth.py::TestPinHashing::test_set_pin_updates_hash ERROR                                                  [ 89%]
+tests/unit/test_pin_auth.py::TestPasswordAuth::test_hash_password ERROR                                                       [ 90%]
+tests/unit/test_pin_auth.py::TestPasswordAuth::test_verify_password_success ERROR                                             [ 92%]
+tests/unit/test_pin_auth.py::TestPasswordAuth::test_verify_password_failure ERROR                                             [ 94%]
+tests/unit/test_pin_auth.py::TestPasswordAuth::test_no_password_returns_false ERROR                                           [ 96%]
+tests/unit/test_pin_auth.py::TestRoleChecks::test_is_owner ERROR                                                              [ 98%]
+tests/unit/test_pin_auth.py::TestRoleChecks::test_is_not_owner_for_staff ERROR                                                [100%]
+
+============================================================== ERRORS ===============================================================
+______________________________________ ERROR at setup of TestCheckInFlow.test_check_in_student ______________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_______________________________ ERROR at setup of TestCheckInFlow.test_check_in_creates_activity_log ________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_____________________________________ ERROR at setup of TestCheckOutFlow.test_check_out_student _____________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_____________________________ ERROR at setup of TestCheckOutFlow.test_check_out_without_check_in_fails ______________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_____________________________________ ERROR at setup of TestSessionRoster.test_get_empty_roster _____________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+__________________________________ ERROR at setup of TestSessionRoster.test_add_student_to_session __________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_______________________________ ERROR at setup of TestSessionRoster.test_duplicate_add_is_idempotent ________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+__________________________________ ERROR at setup of TestAutoCheckout.test_auto_checkout_triggers ___________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_______________________________________ ERROR at setup of TestSessionCRUD.test_create_session _______________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+________________________________ ERROR at setup of TestSessionCRUD.test_create_session_snaps_to_5min ________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_______________________________ ERROR at setup of TestSessionCRUD.test_create_session_missing_fields ________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_____________________________________ ERROR at setup of TestSessionCRUD.test_get_week_sessions ______________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+______________________________________ ERROR at setup of TestSessionCRUD.test_get_day_sessions ______________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_____________________________ ERROR at setup of TestSessionDragMove.test_move_session_to_different_time _____________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_____________________________ ERROR at setup of TestSessionDragMove.test_move_session_to_different_day ______________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+________________________________ ERROR at setup of TestSessionDragMove.test_move_session_snaps_time _________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_____________________________________ ERROR at setup of TestSessionDragMove.test_cancel_session _____________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_________________________ ERROR at setup of TestScheduleGeneration.test_create_schedule_generates_sessions __________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+___________________________ ERROR at setup of TestTenantIsolation.test_cannot_list_other_academy_students ___________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+______________________________ ERROR at setup of TestTenantIsolation.test_same_academy_access_allowed _______________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+___________________________ ERROR at setup of TestTenantIsolation.test_missing_academy_header_returns_400 ___________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+______________________________________ ERROR at setup of TestAuthentication.test_login_success ______________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_________________________________ ERROR at setup of TestAuthentication.test_login_invalid_password __________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_________________________________ ERROR at setup of TestAuthentication.test_login_nonexistent_email _________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+___________________________________ ERROR at setup of TestAuthentication.test_verify_pin_success ____________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+___________________________________ ERROR at setup of TestAuthentication.test_verify_pin_invalid ____________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+____________________________ ERROR at setup of TestAuthentication.test_verify_pin_missing_academy_header ____________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+________________________________ ERROR at setup of TestAuthentication.test_verify_pin_wrong_academy _________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+______________________________ ERROR at setup of TestAuthentication.test_protected_route_without_token ______________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_________________________ ERROR at setup of TestBillingStatusDerivation.test_status_paid_when_paid_date_set _________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+__________________________ ERROR at setup of TestBillingStatusDerivation.test_status_due_when_not_yet_paid __________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+__________________________ ERROR at setup of TestBillingStatusDerivation.test_status_overdue_when_past_due __________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_______________________________________ ERROR at setup of TestPaymentPlans.test_plan_creation _______________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+____________________________________ ERROR at setup of TestPaymentPlans.test_term_plan_duration _____________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_________________________________ ERROR at setup of TestHourlyPayroll.test_hourly_rate_calculation __________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+____________________________________ ERROR at setup of TestHourlyPayroll.test_zero_hours_payroll ____________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_____________________________ ERROR at setup of TestPerStudentPayroll.test_per_student_rate_calculation _____________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+________________________________ ERROR at setup of TestPayrollStatus.test_initial_status_is_pending _________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+__________________________________ ERROR at setup of TestPayrollStatus.test_settle_sets_paid_date ___________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+___________________________________ ERROR at setup of TestPinHashing.test_hash_pin_returns_string ___________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_____________________________________ ERROR at setup of TestPinHashing.test_verify_pin_success ______________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_____________________________________ ERROR at setup of TestPinHashing.test_verify_pin_failure ______________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+____________________________________ ERROR at setup of TestPinHashing.test_set_pin_updates_hash _____________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_______________________________________ ERROR at setup of TestPasswordAuth.test_hash_password _______________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+__________________________________ ERROR at setup of TestPasswordAuth.test_verify_password_success __________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+__________________________________ ERROR at setup of TestPasswordAuth.test_verify_password_failure __________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+_________________________________ ERROR at setup of TestPasswordAuth.test_no_password_returns_false _________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+__________________________________________ ERROR at setup of TestRoleChecks.test_is_owner ___________________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+___________________________________ ERROR at setup of TestRoleChecks.test_is_not_owner_for_staff ____________________________________
+tests/conftest.py:33: in app
+    app = create_app("testing")
+          ^^^^^^^^^^^^^^^^^^^^^
+app/__init__.py:37: in create_app
+    _register_blueprints(app)
+app/__init__.py:47: in _register_blueprints
+    from app.routes.auth import auth_bp
+app/routes/auth.py:11: in <module>
+    from app.schemas.auth import (
+app/schemas/auth.py:9: in <module>
+    class SignupRequestSchema(Schema):
+app/schemas/auth.py:11: in SignupRequestSchema
+    name = fields.String(required=True, description="Academy name", example="Al-Baraka Academy")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: Field.__init__() got an unexpected keyword argument 'description'
+========================================================== tests coverage ===========================================================
+__________________________________________ coverage: platform linux, python 3.14.7-final-0 __________________________________________
+
+Name                                 Stmts   Miss  Cover   Missing
+------------------------------------------------------------------
+app/__init__.py                         52     27    48%   40-42, 48-68, 73-79
+app/config.py                           33      0   100%
+app/extensions.py                       12      0   100%
+app/models/__init__.py                  10      0   100%
+app/models/academy.py                   62      3    95%   53, 98, 133
+app/models/attendance.py                21      1    95%   54
+app/models/audit.py                     20      1    95%   56
+app/models/billing.py                   50      3    94%   38, 86, 118
+app/models/class_room.py                45      3    93%   36, 85, 111
+app/models/notification.py              21      1    95%   54
+app/models/scheduling.py                42      2    95%   44, 100
+app/models/student.py                   50      4    92%   56, 59, 87, 120
+app/models/teacher.py                   59      4    93%   65, 68, 114, 147
+app/models/user.py                      45     10    78%   60, 64, 68, 75, 79-81, 85, 89, 92
+app/routes/__init__.py                   0      0   100%
+app/routes/analytics.py                 67     67     0%   5-134
+app/routes/attendance.py                60     60     0%   5-132
+app/routes/auth.py                     128    121     5%   17-242
+app/routes/billing.py                  115    115     0%   5-199
+app/routes/calendar.py                  91     91     0%   5-178
+app/routes/classes.py                  163    163     0%   5-340
+app/routes/notifications.py             70     70     0%   5-155
+app/routes/settings.py                 196    196     0%   5-355
+app/routes/students.py                 113    113     0%   5-215
+app/routes/teachers.py                  91     91     0%   5-222
+app/schemas/__init__.py                  0      0   100%
+app/schemas/analytics.py                11     11     0%   4-20
+app/schemas/attendance.py               41     41     0%   4-78
+app/schemas/auth.py                     63     60     5%   12-109
+app/schemas/base.py                      5      5     0%   4-14
+app/schemas/billing.py                  68     68     0%   4-114
+app/schemas/calendar.py                 45     45     0%   4-73
+app/schemas/classes.py                  58     58     0%   4-98
+app/schemas/notifications.py            25     25     0%   4-47
+app/schemas/settings.py                 82     82     0%   4-137
+app/schemas/students.py                 73     73     0%   4-116
+app/schemas/teachers.py                 71     71     0%   4-105
+app/services/__init__.py                 0      0   100%
+app/services/attendance_service.py      62     62     0%   5-174
+app/services/audit_service.py           32     32     0%   5-104
+app/services/auth_service.py            43     34    21%   15-27, 42-53, 64-67, 72-81, 86-95, 100
+app/services/billing_service.py        106    106     0%   5-307
+app/services/export_service.py          66     66     0%   5-160
+app/services/payroll_service.py         78     78     0%   5-232
+app/services/scheduling_service.py      89     89     0%   5-204
+app/services/student_service.py        110    110     0%   5-290
+app/services/tenant_service.py          33     23    30%   22-73, 83-95, 102-114, 119-120
+app/tasks/__init__.py                    0      0   100%
+app/tasks/cron_jobs.py                  71     71     0%   6-148
+app/tasks/scheduler.py                  23     23     0%   5-48
+app/utils/__init__.py                    0      0   100%
+app/utils/decorators.py                 63     63     0%   5-102
+app/utils/error_handlers.py             26      8    69%   13, 17, 21, 25, 29, 33, 37, 41
+app/utils/formatters.py                 62     38    39%   20-33, 38-40, 47, 52-53, 60, 70-71, 95-98, 103-109, 117-121, 128-133
+------------------------------------------------------------------
+TOTAL                                 3022   2488    18%
+Coverage HTML written to dir htmlcov
+====================================================== short test summary info ======================================================
+ERROR tests/integration/test_attendance_flow.py::TestCheckInFlow::test_check_in_student - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_attendance_flow.py::TestCheckInFlow::test_check_in_creates_activity_log - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_attendance_flow.py::TestCheckOutFlow::test_check_out_student - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_attendance_flow.py::TestCheckOutFlow::test_check_out_without_check_in_fails - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_attendance_flow.py::TestSessionRoster::test_get_empty_roster - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_attendance_flow.py::TestSessionRoster::test_add_student_to_session - TypeError: Field.__init__() got anunexpected keyword argument 'description'
+ERROR tests/integration/test_attendance_flow.py::TestSessionRoster::test_duplicate_add_is_idempotent - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_attendance_flow.py::TestAutoCheckout::test_auto_checkout_triggers - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session_snaps_to_5min - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session_missing_fields - TypeError: Field.__init__() gotan unexpected keyword argument 'description'
+ERROR tests/integration/test_calendar_drag.py::TestSessionCRUD::test_get_week_sessions - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_calendar_drag.py::TestSessionCRUD::test_get_day_sessions - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_to_different_time - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_to_different_day - TypeError: Field.__init__()got an unexpected keyword argument 'description'
+ERROR tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_snaps_time - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_calendar_drag.py::TestSessionDragMove::test_cancel_session - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_calendar_drag.py::TestScheduleGeneration::test_create_schedule_generates_sessions - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_cannot_list_other_academy_students - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_same_academy_access_allowed - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_missing_academy_header_returns_400 - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestAuthentication::test_login_success - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestAuthentication::test_login_invalid_password - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestAuthentication::test_login_nonexistent_email - TypeError: Field.__init__() gotan unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_success - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_invalid - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_missing_academy_header - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_wrong_academy - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/integration/test_tenant_isolation.py::TestAuthentication::test_protected_route_without_token - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_paid_when_paid_date_set - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_due_when_not_yet_paid - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_overdue_when_past_due - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_billing_cycles.py::TestPaymentPlans::test_plan_creation - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_billing_cycles.py::TestPaymentPlans::test_term_plan_duration - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_payroll_calc.py::TestHourlyPayroll::test_hourly_rate_calculation - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_payroll_calc.py::TestHourlyPayroll::test_zero_hours_payroll - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_payroll_calc.py::TestPerStudentPayroll::test_per_student_rate_calculation - TypeError: Field.__init__() got anunexpected keyword argument 'description'
+ERROR tests/unit/test_payroll_calc.py::TestPayrollStatus::test_initial_status_is_pending - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_payroll_calc.py::TestPayrollStatus::test_settle_sets_paid_date - TypeError: Field.__init__() got an unexpectedkeyword argument 'description'
+ERROR tests/unit/test_pin_auth.py::TestPinHashing::test_hash_pin_returns_string - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_pin_auth.py::TestPinHashing::test_verify_pin_success - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_pin_auth.py::TestPinHashing::test_verify_pin_failure - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_pin_auth.py::TestPinHashing::test_set_pin_updates_hash - TypeError: Field.__init__() got an unexpected keywordargument 'description'
+ERROR tests/unit/test_pin_auth.py::TestPasswordAuth::test_hash_password - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_pin_auth.py::TestPasswordAuth::test_verify_password_success - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_pin_auth.py::TestPasswordAuth::test_verify_password_failure - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_pin_auth.py::TestPasswordAuth::test_no_password_returns_false - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_pin_auth.py::TestRoleChecks::test_is_owner - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+ERROR tests/unit/test_pin_auth.py::TestRoleChecks::test_is_not_owner_for_staff - TypeError: Field.__init__() got an unexpected keyword argument 'description'
+=================================================== 6 passed, 49 errors in 1.16s ====================================================
+
+~/repos/academy/Vinta-OS-backend main*
+venv ❯

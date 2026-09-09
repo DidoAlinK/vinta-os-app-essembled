@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vinta School OS — Auth &amp; Profiles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --r-xl:26px; --r-lg:20px; --r-md:14px; --r-sm:10px; }
+ 
+  /* ---- LIGHT: glossy off-white / gold + emerald (matches dev reference) ---- */
+  [data-theme="light"]{
+    --bg:#efece4;
+    --bg-grad: radial-gradient(1000px 500px at 20% -10%, rgba(255,255,255,0.9), transparent 60%),
+               radial-gradient(900px 500px at 100% 0%, rgba(201,162,39,0.10), transparent 55%),
+               linear-gradient(180deg, #f4f1ea, #e9e5db);
+    --panel: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.55));
+    --panel-border: rgba(255,255,255,0.8);
+    --panel-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 18px 40px rgba(120,105,80,0.16);
+    --sheen: linear-gradient(115deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.15) 30%, rgba(255,255,255,0) 55%);
+    --text:#23241f; --muted:#75726a;
+    --gold:#b3872a; --emerald:#0f6b4d;
+    --gold-soft:rgba(179,135,42,0.14); --emerald-soft:rgba(15,107,77,0.13);
+    --red:#b3423a; --red-soft:rgba(179,66,58,0.13);
+    --divider: rgba(35,36,31,0.08);
+    --input-bg: rgba(255,255,255,0.6);
+  }
+ 
+  /* ---- DARK: glossy deep grey / gold + emerald ---- */
+  [data-theme="dark"]{
+    --bg:#1a1a1c;
+    --bg-grad: radial-gradient(1000px 500px at 15% -10%, rgba(255,255,255,0.05), transparent 60%),
+               radial-gradient(900px 500px at 100% 10%, rgba(31,174,124,0.07), transparent 55%),
+               linear-gradient(180deg, #1d1d20, #131315);
+    --panel: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
+    --panel-border: rgba(255,255,255,0.09);
+    --panel-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 20px 50px rgba(0,0,0,0.55);
+    --sheen: linear-gradient(115deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 30%, rgba(255,255,255,0) 55%);
+    --text:#eceef0; --muted:#9497a1;
+    --gold:#e0b93f; --emerald:#1fae7c;
+    --gold-soft:rgba(224,185,63,0.15); --emerald-soft:rgba(31,174,124,0.15);
+    --red:#e07a6f; --red-soft:rgba(224,122,111,0.15);
+    --divider: rgba(255,255,255,0.08);
+    --input-bg: rgba(255,255,255,0.05);
+  }
+ 
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; min-height:100vh; font-family:'Inter',sans-serif;
+    background: var(--bg-grad); background-color:var(--bg); color:var(--text);
+    transition: background .3s ease, color .3s ease;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+ 
+  .glass{position:relative; background:var(--panel); border:1px solid var(--panel-border); border-radius:var(--r-lg); box-shadow:var(--panel-shadow); overflow:hidden;}
+  .glass::before{content:''; position:absolute; inset:0; background:var(--sheen); pointer-events:none;}
+ 
+  /* THEME TOGGLE — reused everywhere */
+  .theme-toggle{display:flex; align-items:center; gap:0; cursor:pointer; border-radius:100px; padding:5px; position:relative; width:60px; height:30px; flex-shrink:0;}
+  .theme-toggle .knob{width:20px; height:20px; border-radius:50%; background:linear-gradient(160deg,var(--gold),var(--emerald)); position:absolute; top:4px; left:4px; transition:left .3s cubic-bezier(.4,0,.2,1); box-shadow:0 2px 8px rgba(0,0,0,.25);}
+  .theme-toggle.dark .knob{left:34px;}
+  .theme-toggle .ic{font-size:10px; color:var(--muted); width:13px; text-align:center; position:relative; z-index:1;}
+  .theme-toggle .ic:first-child{margin-left:1px;} .theme-toggle .ic:last-child{margin-left:auto; margin-right:1px;}
+ 
+  .stage{width:100%; max-width:440px; position:relative;}
+  .top-toggle{position:absolute; top:-52px; right:0;}
+ 
+  /* ============ SCENE: AUTH ============ */
+  .scene{display:none;}
+  .scene.active{display:block; animation:fadeIn .35s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+ 
+  .brand-block{display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:26px;}
+  .brand-mark{width:52px; height:52px; border-radius:16px; background:linear-gradient(150deg,var(--gold),var(--emerald)); box-shadow:0 10px 26px rgba(0,0,0,.18), 0 1px 0 rgba(255,255,255,.3) inset; margin-bottom:14px;}
+  .brand-block h1{font-family:'Space Grotesk'; font-size:19px; font-weight:600; margin:0;}
+  .brand-block span{color:var(--muted); font-size:12.5px; margin-top:3px;}
+ 
+  .pill-nav{display:flex; gap:4px; padding:5px; margin-bottom:18px; border-radius:100px;}
+  .pill-nav button{flex:1; appearance:none; border:none; background:transparent; color:var(--muted); font-family:'Inter'; font-size:13px; font-weight:600; padding:10px 14px; border-radius:100px; cursor:pointer; transition:.18s; position:relative; z-index:1;}
+  .pill-nav button:hover{color:var(--text);}
+  .pill-nav button.active{background:var(--gold-soft); color:var(--text); box-shadow:inset 0 0 0 1px var(--panel-border);}
+ 
+  .auth-panel{padding:26px 24px 24px; position:relative; z-index:1;}
+  .form-block{display:none;}
+  .form-block.active{display:block; animation:fadeIn .3s ease;}
+ 
+  .field-label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px; position:relative; z-index:1;}
+  .field-label:first-of-type{margin-top:0;}
+  .field-row{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .field-input{width:100%; background:var(--input-bg); border:1px solid var(--panel-border); border-radius:var(--r-sm); padding:11px 13px; color:var(--text); font-family:'Inter'; font-size:13.5px; outline:none; position:relative; z-index:1; transition:box-shadow .15s;}
+  .field-input:focus{box-shadow:0 0 0 2px var(--gold-soft);}
+  .field-input::placeholder{color:var(--muted);}
+ 
+  .row-between{display:flex; align-items:center; justify-content:space-between; margin-top:14px; position:relative; z-index:1;}
+  .check-line{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); cursor:pointer;}
+  .check-line input{accent-color:var(--emerald); width:15px; height:15px; cursor:pointer;}
+  .link-muted{font-size:12.5px; color:var(--gold); font-weight:500; cursor:pointer; text-decoration:none;}
+  .link-muted:hover{text-decoration:underline;}
+ 
+  .submit-btn{width:100%; margin-top:20px; background:linear-gradient(150deg,var(--gold),var(--emerald)); color:#fff; border:none; border-radius:var(--r-sm); padding:13px; font-weight:600; font-size:13.5px; cursor:pointer; position:relative; z-index:1; box-shadow:0 8px 20px rgba(0,0,0,.18), 0 1px 0 rgba(255,255,255,.25) inset; transition:transform .15s;}
+  .submit-btn:hover{transform:translateY(-1px);}
+ 
+  .switch-line{text-align:center; margin-top:18px; font-size:12.5px; color:var(--muted); position:relative; z-index:1;}
+  .switch-line span{color:var(--gold); font-weight:600; cursor:pointer;}
+  .switch-line span:hover{text-decoration:underline;}
+ 
+  .err-text{font-size:11.5px; color:var(--red); margin-top:6px; display:none; position:relative; z-index:1;}
+  .err-text.show{display:block;}
+ 
+  /* ============ SCENE: PROFILES ============ */
+  .profiles-head{display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:8px;}
+  .profiles-head h2{font-family:'Space Grotesk'; font-size:20px; font-weight:600; margin:0;}
+  .profiles-head p{color:var(--muted); font-size:13px; margin:6px 0 0;}
+  .logout-link{display:flex; align-items:center; gap:6px; justify-content:center; font-size:12px; color:var(--muted); cursor:pointer; margin-top:10px;}
+  .logout-link:hover{color:var(--text);}
+  .logout-link svg{width:13px; height:13px;}
+ 
+  .profile-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:26px;}
+  .profile-tile{display:flex; flex-direction:column; align-items:center; gap:9px; cursor:pointer; padding:16px 8px; border-radius:var(--r-md); transition:.18s;}
+  .profile-tile:hover{background:rgba(127,127,127,0.07); transform:translateY(-2px);}
+  .p-avatar{width:64px; height:64px; border-radius:20px; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk'; font-weight:700; font-size:20px; color:#fff; box-shadow:0 10px 22px rgba(0,0,0,.18);}
+  .p-name{font-family:'Space Grotesk'; font-weight:600; font-size:13px; text-align:center;}
+  .p-role{font-size:10.5px; font-weight:500; padding:2px 9px; border-radius:100px;}
+  .p-role.owner{color:var(--gold); background:var(--gold-soft);}
+  .p-role.staff{color:var(--emerald); background:var(--emerald-soft);}
+ 
+  .add-tile .p-avatar{background:transparent; border:1.5px dashed var(--panel-border); color:var(--muted); box-shadow:none;}
+  .add-tile:hover .p-avatar{border-color:var(--gold); color:var(--gold);}
+  .add-tile .p-avatar svg{width:22px; height:22px;}
+  .add-note{text-align:center; font-size:11px; color:var(--muted); margin-top:22px; opacity:.8;}
+ 
+  /* PIN MODAL */
+  .overlay{position:fixed; inset:0; background:rgba(10,10,10,.45); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; z-index:60; padding:20px;}
+  .overlay.show{display:flex;}
+  .pin-modal{width:100%; max-width:300px; padding:26px 22px; text-align:center; position:relative;}
+  .pin-avatar{width:56px; height:56px; border-radius:18px; margin:0 auto 12px; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk'; font-weight:700; font-size:18px; color:#fff; position:relative; z-index:1;}
+  .pin-modal h3{font-family:'Space Grotesk'; font-size:15.5px; font-weight:600; margin:0 0 4px; position:relative; z-index:1;}
+  .pin-modal p{font-size:12px; color:var(--muted); margin:0 0 18px; position:relative; z-index:1;}
+  .pin-boxes{display:flex; gap:9px; justify-content:center; position:relative; z-index:1;}
+  .pin-box{width:44px; height:52px; border-radius:var(--r-sm); background:var(--input-bg); border:1px solid var(--panel-border); text-align:center; font-size:20px; font-family:'Space Grotesk'; font-weight:600; color:var(--text); outline:none;}
+  .pin-box:focus{box-shadow:0 0 0 2px var(--gold-soft);}
+  .pin-err{font-size:11.5px; color:var(--red); margin-top:12px; display:none; position:relative; z-index:1;}
+  .pin-err.show{display:block;}
+  .pin-cancel{margin-top:16px; font-size:12px; color:var(--muted); cursor:pointer; position:relative; z-index:1;}
+  .pin-cancel:hover{color:var(--text);}
+ 
+  /* SUCCESS SCENE */
+  .success-panel{padding:44px 30px; text-align:center;}
+  .success-icon{width:56px; height:56px; border-radius:18px; background:linear-gradient(150deg,var(--gold),var(--emerald)); display:flex; align-items:center; justify-content:center; margin:0 auto 18px; position:relative; z-index:1; box-shadow:0 10px 24px rgba(0,0,0,.18);}
+  .success-icon svg{width:26px; height:26px; color:#fff;}
+  .success-panel h2{font-family:'Space Grotesk'; font-size:17px; font-weight:600; margin:0 0 6px; position:relative; z-index:1;}
+  .success-panel p{font-size:12.5px; color:var(--muted); margin:0; position:relative; z-index:1;}
+  .success-back{margin-top:22px; font-size:12.5px; color:var(--gold); font-weight:600; cursor:pointer; position:relative; z-index:1;}
+  .success-back:hover{text-decoration:underline;}
+ 
+  footer{text-align:center; color:var(--muted); font-size:11px; margin-top:20px; opacity:.55;}
+</style>
+</head>
+<body data-theme="light" id="body">
+ 
+<div class="stage">
+  <div class="theme-toggle glass top-toggle" id="themeToggle" onclick="toggleTheme()">
+    <span class="ic">☀</span><span class="ic">☾</span><div class="knob"></div>
+  </div>
+ 
+  <!-- ============ SCENE 1: AUTH ============ -->
+  <section class="scene active" id="scene-auth">
+    <div class="brand-block">
+      <div class="brand-mark"></div>
+      <h1>Vinta School OS</h1>
+      <span>École Al Amal — sign in to manage your academy</span>
+    </div>
+ 
+    <div class="pill-nav glass">
+      <button class="active" data-mode="login" onclick="setMode('login')">Log in</button>
+      <button data-mode="signup" onclick="setMode('signup')">Create academy</button>
+    </div>
+ 
+    <div class="glass auth-panel">
+      <!-- LOG IN -->
+      <div class="form-block active" id="form-login">
+        <div class="field-label">Email</div>
+        <input class="field-input" type="email" placeholder="you@youracademy.dz" id="li-email">
+        <div class="field-label">Password</div>
+        <input class="field-input" type="password" placeholder="••••••••" id="li-pass">
+        <div class="row-between">
+          <label class="check-line"><input type="checkbox" checked> Keep this device signed in</label>
+          <a class="link-muted">Forgot?</a>
+        </div>
+        <div class="err-text" id="li-err">Enter your email and password to continue.</div>
+        <button class="submit-btn" onclick="handleLogin()">Log in</button>
+        <div class="switch-line">New academy? <span onclick="setMode('signup')">Create an account</span></div>
+      </div>
+ 
+      <!-- SIGN UP -->
+      <div class="form-block" id="form-signup">
+        <div class="field-label">Academy name</div>
+        <input class="field-input" type="text" placeholder="e.g. École Al Amal" id="su-academy">
+        <div class="field-label">Your name</div>
+        <input class="field-input" type="text" placeholder="Owner full name" id="su-name">
+        <div class="field-row">
+          <div>
+            <div class="field-label">Email</div>
+            <input class="field-input" type="email" placeholder="you@email.com" id="su-email">
+          </div>
+          <div>
+            <div class="field-label">Phone</div>
+            <input class="field-input" type="tel" placeholder="+213 5 •• •• •• ••" id="su-phone" oninput="formatPhone(this)">
+          </div>
+        </div>
+        <div class="field-label">Password</div>
+        <input class="field-input" type="password" placeholder="At least 8 characters" id="su-pass">
+        <div class="err-text" id="su-err">Fill in every field to create your academy's account.</div>
+        <button class="submit-btn" onclick="handleSignup()">Create account</button>
+        <div class="switch-line">Already set up? <span onclick="setMode('login')">Log in</span></div>
+      </div>
+    </div>
+    <footer>Mockup only — no real accounts are created here</footer>
+  </section>
+ 
+  <!-- ============ SCENE 2: PROFILES ============ -->
+  <section class="scene" id="scene-profiles">
+    <div class="profiles-head">
+      <h2>Who's this?</h2>
+      <p>Pick a profile to continue on this device</p>
+    </div>
+ 
+    <div class="glass" style="padding:22px 20px 8px; margin-top:18px;">
+      <div class="profile-grid" id="profileGrid"></div>
+      <div class="add-note">Each staff member gets a private PIN — every action they take is logged under their name, so there's never a question of who did what</div>
+      <div style="height:20px;"></div>
+    </div>
+ 
+    <div class="logout-link" onclick="setScene('auth')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      Not you? Log out
+    </div>
+    <footer>Staff unlock with a 4-digit PIN — owners are already signed in</footer>
+  </section>
+ 
+  <!-- ============ SCENE 3: SUCCESS (mock) ============ -->
+  <section class="scene" id="scene-success">
+    <div class="glass success-panel">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <h2 id="success-title">You're in</h2>
+      <p id="success-sub">This is where the real dashboard loads once the backend is wired up.</p>
+      <div class="success-back" onclick="setScene('profiles')">← Back to profiles</div>
+    </div>
+  </section>
+</div>
+ 
+<!-- PIN MODAL -->
+<div class="overlay" id="pinOverlay">
+  <div class="pin-modal glass">
+    <div class="pin-avatar" id="pin-avatar">—</div>
+    <h3 id="pin-name">—</h3>
+    <p>Only you know this PIN — every action you take is logged under your name</p>
+    <div class="pin-boxes">
+      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="0">
+      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="1">
+      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="2">
+      <input class="pin-box" maxlength="1" inputmode="numeric" data-i="3">
+    </div>
+    <div class="pin-err" id="pin-err">That PIN doesn't match — try again.</div>
+    <div class="pin-cancel" onclick="closePinModal()">Cancel</div>
+  </div>
+</div>
+ 
+<script>
+  /* ---- theme ---- */
+  function toggleTheme(){
+    const body = document.getElementById('body');
+    const toggle = document.getElementById('themeToggle');
+    const isDark = body.getAttribute('data-theme') === 'dark';
+    body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    toggle.classList.toggle('dark', !isDark);
+  }
+ 
+  /* ---- scene switching ---- */
+  function setScene(name){
+    document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+    document.getElementById('scene-' + name).classList.add('active');
+    if(name === 'profiles') renderProfiles();
+  }
+ 
+  /* ---- login / signup tab switching ---- */
+  function setMode(mode){
+    document.querySelectorAll('.pill-nav button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    document.getElementById('form-login').classList.toggle('active', mode === 'login');
+    document.getElementById('form-signup').classList.toggle('active', mode === 'signup');
+  }
+ 
+  /* ---- phone auto +213 (same pattern as landing page) ---- */
+  function formatPhone(input){
+    let v = input.value.replace(/[^\d+]/g,'');
+    if(v.startsWith('0')) v = '+213' + v.slice(1);
+    input.value = v;
+  }
+ 
+  /* ---- mock auth handlers ---- */
+  function handleLogin(){
+    const email = document.getElementById('li-email').value.trim();
+    const pass = document.getElementById('li-pass').value.trim();
+    const err = document.getElementById('li-err');
+    if(!email || !pass){ err.classList.add('show'); return; }
+    err.classList.remove('show');
+    setScene('profiles');
+  }
+  function handleSignup(){
+    const fields = ['su-academy','su-name','su-email','su-phone','su-pass'];
+    const err = document.getElementById('su-err');
+    const ok = fields.every(id => document.getElementById(id).value.trim());
+    if(!ok){ err.classList.add('show'); return; }
+    err.classList.remove('show');
+    setScene('profiles');
+  }
+ 
+  /* ---- profile data (mock) ---- */
+  const PROFILES = [
+    {name:'Ali (You)', role:'owner', initials:'A', c1:'#b3872a', c2:'#0f6b4d'},
+    {name:'Nadia', role:'staff', initials:'N', c1:'#0f6b4d', c2:'#b3872a'},
+    {name:'Yacine', role:'staff', initials:'Y', c1:'#8a6a9c', c2:'#b3872a'}
+  ];
+ 
+  function renderProfiles(){
+    const grid = document.getElementById('profileGrid');
+    grid.innerHTML = PROFILES.map((p,i) => `
+      <div class="profile-tile" onclick="selectProfile(${i})">
+        <div class="p-avatar" style="background:linear-gradient(150deg,${p.c1},${p.c2});">${p.initials}</div>
+        <div class="p-name">${p.name}</div>
+        <span class="p-role ${p.role}">${p.role === 'owner' ? 'Owner' : 'Staff'}</span>
+      </div>
+    `).join('') + `
+      <div class="profile-tile add-tile" onclick="alert('Owner-only: opens the add-staff-profile form')">
+        <div class="p-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="p-name">Add profile</div>
+        <span class="p-role" style="color:var(--muted); background:rgba(127,127,127,0.14);">&nbsp;</span>
+      </div>
+    `;
+  }
+ 
+  let pendingProfile = null;
+  function selectProfile(i){
+    const p = PROFILES[i];
+    if(p.role === 'owner'){
+      // owner already fully authenticated at login — no PIN needed
+      document.getElementById('success-title').textContent = 'Welcome back, ' + p.name.replace(' (You)','');
+      document.getElementById('success-sub').textContent = 'This is where the real dashboard loads once the backend is wired up.';
+      setScene('success');
+      return;
+    }
+    pendingProfile = p;
+    document.getElementById('pin-avatar').style.background = `linear-gradient(150deg,${p.c1},${p.c2})`;
+    document.getElementById('pin-avatar').textContent = p.initials;
+    document.getElementById('pin-name').textContent = p.name;
+    document.getElementById('pin-err').classList.remove('show');
+    document.querySelectorAll('.pin-box').forEach(b => b.value = '');
+    document.getElementById('pinOverlay').classList.add('show');
+    document.querySelector('.pin-box[data-i="0"]').focus();
+  }
+  function closePinModal(){
+    document.getElementById('pinOverlay').classList.remove('show');
+    pendingProfile = null;
+  }
+ 
+  /* ---- PIN box behavior ---- */
+  const pinBoxes = document.querySelectorAll('.pin-box');
+  pinBoxes.forEach(box => {
+    box.addEventListener('input', () => {
+      box.value = box.value.replace(/[^0-9]/g,'').slice(0,1);
+      const i = parseInt(box.dataset.i);
+      if(box.value && i < 3) pinBoxes[i+1].focus();
+      if([...pinBoxes].every(b => b.value.length === 1)) checkPin();
+    });
+    box.addEventListener('keydown', e => {
+      const i = parseInt(box.dataset.i);
+      if(e.key === 'Backspace' && !box.value && i > 0) pinBoxes[i-1].focus();
+    });
+  });
+  function checkPin(){
+    // mockup: any 4 digits works — real PIN check happens server-side later
+    document.getElementById('pinOverlay').classList.remove('show');
+    document.getElementById('success-title').textContent = 'Welcome, ' + pendingProfile.name;
+    document.getElementById('success-sub').textContent = "You're checked in as " + pendingProfile.name + ' — every action from here logs under your name.';
+    setScene('success');
+  }
+ 
+  document.getElementById('pinOverlay').addEventListener('click', e => {
+    if(e.target.id === 'pinOverlay') closePinModal();
+  });
+</script>
+</body>
+</html>
+ 

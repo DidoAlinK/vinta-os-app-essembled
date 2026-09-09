@@ -1,0 +1,68 @@
+================================================================== short test summary info ===================================================================
+FAILED tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '93570e30-e819-407d-933c-ca4488d404d9', 'classroom_id': '68ee352b-ac6a-4c89-8c1a-fb8fcf9c15f0', 'id': '29a98478-b949-4d55-b892-8992484f1986', 'start_time': '08:00', 'day_of_week': 1}]]
+FAILED tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session_snaps_to_5min - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '39a5f8f9-c615-47e7-9203-197233b5a40c', 'classroom_id': 'ed286540-4eef-4235-8837-5fcad7d4032f', 'id': 'f8301d61-b01a-457a-ba20-ce5d3d2a5ec4', 'start_time': '08:00', 'day_of_week': 1}]]
+FAILED tests/integration/test_calendar_drag.py::TestScheduleGeneration::test_create_schedule_generates_sessions - ImportError: cannot import name 'snap_time_obj' from 'app.utils.formatters' (/home/reyushi/repos/academy/Vinta-OS-backend/app/utils/formatters.py)
+FAILED tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_cannot_list_other_academy_students - AttributeError: 'function' object has no attribute 'bind'
+FAILED tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_success - assert 401 == 200
+ +  where 401 = <WrapperTestResponse streamed [401 UNAUTHORIZED]>.status_code
+ERROR tests/integration/test_attendance_flow.py::TestCheckInFlow::test_check_in_student - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '7457f139-b0a1-4e77-a997-da21c3ef1a67', 'classroom_id': '59c14a52-b80d-492e-baa3-4d36596c0726', 'id': '5a764d10-56eb-4e58-950b-18d29570edff', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_attendance_flow.py::TestCheckInFlow::test_check_in_creates_activity_log - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '8be6b9e1-a77c-4b40-9405-f12dfebf18df', 'classroom_id': 'ddc2adfa-641c-4362-8230-182669b74f5a', 'id': '5262df1c-97f6-4c77-8d34-c19669fab508', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_attendance_flow.py::TestCheckOutFlow::test_check_out_student - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '920998e3-8430-40a3-96dc-93c39a5abb9c', 'classroom_id': '76c79a73-d01a-4082-a5fa-14964de17125', 'id': '61f5e608-7dfb-47e8-a9b0-750684514d8c', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_attendance_flow.py::TestCheckOutFlow::test_check_out_without_check_in_fails - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': 'f8dce218-9dd7-4da8-9acf-00ac282b14ba', 'classroom_id': '2b13355e-d3cf-4af2-9674-eef52d967d8d', 'id': 'fc879bbe-1a4e-466c-94df-4b9d4ef5e32f', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_attendance_flow.py::TestSessionRoster::test_get_empty_roster - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '01f2882a-6845-4e1e-99d4-40255e15d809', 'classroom_id': 'c380ac95-7431-49ed-8c13-936235f7791a', 'id': 'addfd1b6-b90c-4ff6-b3a9-301b7ae7ec4d', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_attendance_flow.py::TestSessionRoster::test_add_student_to_session - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '78eb52e8-f71e-45e0-b869-01b1f0290135', 'classroom_id': 'eec1673d-0166-4759-aa9d-02be1964e12a', 'id': 'a31e274e-8cec-4747-bced-0e7fe5c5ee8b', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_attendance_flow.py::TestSessionRoster::test_duplicate_add_is_idempotent - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '95186c1d-f23c-49da-aaad-44c00f05317d', 'classroom_id': '57869a46-ca5f-49d4-849c-d6bd9622398b', 'id': 'c491307d-8c25-4c94-9fc2-1c2206847547', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_attendance_flow.py::TestAutoCheckout::test_auto_checkout_triggers - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': 'eb3b64d2-4390-408f-94ba-7d834c3304e2', 'classroom_id': '88ccd566-a254-41e6-a9d1-f46e3c1b6176', 'id': 'be497d80-9b9d-4f35-95a3-20a96476eb6e', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_calendar_drag.py::TestSessionCRUD::test_get_week_sessions - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time typeonly accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': 'ed840808-e01e-458b-ab9e-39620c4d699f', 'classroom_id': 'bbbb53da-3baa-4c32-be1f-3d7703cb676a', 'id': '5c318553-ba26-4976-8005-2ed0e790ac15', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_calendar_drag.py::TestSessionCRUD::test_get_day_sessions - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': 'a44e2354-b98b-492b-976c-59b2c4fc82f9', 'classroom_id': '3d11ae09-1b2a-46f5-8b6f-ed84ff58b000', 'id': '7d9afee9-e91d-4dc5-b1c0-2fa079b044fd', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_to_different_time - sqlalchemy.exc.StatementError: (builtins.TypeError)SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': 'f48061a0-889d-4732-90dd-402af7f5d062', 'classroom_id': 'd5c21838-d35d-4be3-a4fc-b5931770beae', 'id': 'ce783c27-56b9-4b65-897a-904b201c4b45', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_to_different_day - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '8e5e93a1-ac09-441f-ab76-d1cd5342edd2', 'classroom_id': 'cf6edde4-4b92-4ebf-93db-c5b159076375', 'id': '66e93cf4-faae-4199-8eb9-4a8bba685fdc', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_snaps_time - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLiteTime type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '5478a8df-3941-4d8b-b5ca-1d1b306592cd', 'classroom_id': 'ca60f29d-cdcc-4c87-a35c-f0d5d004cf3f', 'id': '2db0a991-961c-4b3a-8140-a663f05cc300', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/integration/test_calendar_drag.py::TestSessionDragMove::test_cancel_session - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '98636226-e8c8-461a-b104-0443de78f6ad', 'classroom_id': '57b3c5b6-2b39-4038-8c53-c887d53c3346', 'id': 'a285d8dd-ef8b-4067-9f9c-f22ae3118a81', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_paid_when_paid_date_set - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': 'c3201c93-cc8f-4e97-8055-95addc34caca', 'classroom_id': '87cd14c0-fd23-4fc8-bc10-0f83b6c30fcc', 'id': '8cf3bf76-7b91-45d7-b73e-147d39a62b0a', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_due_when_not_yet_paid - sqlalchemy.exc.StatementError: (builtins.TypeError)SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '2add5a26-3216-4b1d-a22b-00dd3ec7b4e1', 'classroom_id': '3cbe69a1-3ff2-45f1-bab6-dd2eb4f62c66', 'id': 'b32bbeac-914d-4e6e-95fa-7c7be24d6167', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_overdue_when_past_due - sqlalchemy.exc.StatementError: (builtins.TypeError)SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '671abc17-2f5e-4281-8118-9a7518f930c5', 'classroom_id': '94441279-d4f4-4cc8-8357-ccebb7993070', 'id': '319b15cb-3838-4f54-bc6e-aefe0917fd5a', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/unit/test_payroll_calc.py::TestHourlyPayroll::test_hourly_rate_calculation - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time typeonly accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '7ef22bec-3539-4d85-b429-9ee535ee2aaf', 'classroom_id': 'bad6721f-7fe3-4454-b87f-b224c6ca2234', 'id': '31d3b232-040e-4836-978a-204d21fe63d4', 'start_time': '08:00', 'day_of_week': 1}]]
+ERROR tests/unit/test_payroll_calc.py::TestPerStudentPayroll::test_per_student_rate_calculation - sqlalchemy.exc.StatementError: (builtins.TypeError) SQLite Time type only accepts Python time objects as input.
+[SQL: INSERT INTO schedules (id, class_id, classroom_id, day_of_week, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: [{'end_time': '09:00', 'class_id': '528a2750-b671-4e00-bb03-e1e126574dc9', 'classroom_id': '9dc46184-83cd-42e6-874d-11f5c580885c', 'id': 'b7284636-b238-4035-9659-0a47d40d9492', 'start_time': '08:00', 'day_of_week': 1}]]

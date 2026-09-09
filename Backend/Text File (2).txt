@@ -1,0 +1,38 @@
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/venv/bin/flask", line 6, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/venv/lib/python3.14/site-packages/flask/cli.py", line 1131, in main
+    cli.main()
+    ~~~~~~~~^^
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/venv/lib/python3.14/site-packages/click/core.py", line 1552, in main
+    rv = self.invoke(ctx)
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/venv/lib/python3.14/site-packages/click/core.py", line 2026, in invoke
+    cmd_name, cmd, args = self.resolve_command(ctx, args)
+                          ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/venv/lib/python3.14/site-packages/click/core.py", line 2072, in resolve_command
+    cmd = self.get_command(ctx, cmd_name)
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/venv/lib/python3.14/site-packages/flask/cli.py", line 631, in get_command
+    app = info.load_app()
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/venv/lib/python3.14/site-packages/flask/cli.py", line 353, in load_app
+    app = locate_app(import_name, None, raise_if_not_found=False)
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/venv/lib/python3.14/site-packages/flask/cli.py", line 262, in locate_app
+    return find_best_app(module)
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/venv/lib/python3.14/site-packages/flask/cli.py", line 72, in find_best_app
+    app = app_factory()
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/app/__init__.py", line 27, in create_app
+    _register_blueprints(app)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/app/__init__.py", line 37, in _register_blueprints
+    from app.routes.auth import auth_bp
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/app/routes/auth.py", line 8, in <module>
+    from app.models.user import User
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/app/models/__init__.py", line 7, in <module>
+    from app.models.student import Student, Guardian, Enrollment  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/app/models/student.py", line 62, in <module>
+    class Guardian(db.Model):
+    ...<24 lines>...
+            return f"<Guardian {self.name} ({self.relationship})>"
+  File "/home/reyushi/repos/academy/Vinta-OS-backend/app/models/student.py", line 84, in Guardian
+    student = relationship("Student", back_populates="guardians")
+TypeError: 'MappedColumn' object is not callable

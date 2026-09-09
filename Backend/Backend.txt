@@ -1,0 +1,77 @@
+vinta-academy-backend/
+├── app/
+│   ├── __init__.py               # Application Factory (create_app), extension initialization
+│   ├── config.py                 # Config environments (Dev, Test, Production)
+│   ├── extensions.py             # SQLAlchemy, Flask-Migrate, Flask-JWT-Extended, CORS, SocketIO
+│   │
+│   ├── models/                   # Relational ORM Entities & Schemas
+│   │   ├── __init__.py           # Model exports for Flask-Migrate & SQLAlchemy
+│   │   ├── academy.py            # Academy (Tenant) & AcademySettings & Subscription[cite: 2]
+│   │   ├── user.py               # User (Owner/Staff), PIN hashing, Roles, Profiles[cite: 2]
+│   │   ├── student.py            # Student, Guardian (1:N), Enrollment (M:N)[cite: 2]
+│   │   ├── teacher.py            # Teacher, TeacherPayroll, TeacherHoursLog[cite: 2]
+│   │   ├── class_room.py         # Classroom & Subject (palette entity)[cite: 2]
+│   │   ├── scheduling.py         # Class, Schedule (recurring), Session (instances)[cite: 2]
+│   │   ├── attendance.py         # SessionStudent (check-in/out, payment snapshot)[cite: 2]
+│   │   ├── billing.py            # PaymentPlan, StudentBilling, PaymentLog[cite: 2]
+│   │   ├── audit.py              # ActivityLog (attributed staff action trail)[cite: 2]
+│   │   └── notification.py       # Notifications & In-app alerts[cite: 2]
+│   │
+│   ├── routes/                   # HTTP Endpoint Controllers (Blueprints)[cite: 2]
+│   │   ├── __init__.py
+│   │   ├── auth.py               # /api/auth (Login, Profile Selection, PIN Verification)[cite: 2]
+│   │   ├── students.py           # /api/students (CRUD, Guardians, Profile Drawer)[cite: 2]
+│   │   ├── teachers.py           # /api/teachers (CRUD, Contracts, Payroll summaries)[cite: 2]
+│   │   ├── classes.py            # /api/classes & /api/classrooms[cite: 2]
+│   │   ├── calendar.py           # /api/calendar & /api/sessions (Drag-and-drop, 5-min snap)[cite: 2]
+│   │   ├── attendance.py         # /api/attendance (Check-in/out, PIN attribution)[cite: 2]
+│   │   ├── billing.py            # /api/billing (Plans, Cycles, Installments, Overdue)[cite: 2]
+│   │   ├── analytics.py          # /api/analytics (Dashboard stats, Revenue charts, CSV export)[cite: 2]
+│   │   ├── settings.py           # /api/settings (Academy Config, Staff Management, Automations)[cite: 2]
+│   │   └── notifications.py      # /api/notifications (Toast alerts & Broadcasts)[cite: 2]
+│   │
+│   ├── services/                 # Core Business & Domain Logic Layers
+│   │   ├── __init__.py
+│   │   ├── tenant_service.py     # Provisioning academies, default seeds (currency, plans)[cite: 2]
+│   │   ├── auth_service.py       # Hashing, JWT tokens, PIN validation, owner authorization[cite: 2]
+│   │   ├── student_service.py    # Enrollment, status derivation (paid/due/overdue)[cite: 2]
+│   │   ├── scheduling_service.py # Recurring slot generation, drag-to-rescheduling, 5-min snapping[cite: 2]
+│   │   ├── attendance_service.py # Manual check-in, auto-checkout at class end, popup status[cite: 2]
+│   │   ├── billing_service.py    # Cycle renewals, aging buckets (1-7d, 8-30d, 30d+), logs[cite: 2]
+│   │   ├── payroll_service.py    # Hourly vs. Per-student contract calculations[cite: 2]
+│   │   ├── audit_service.py      # Staff PIN attribution logger[cite: 2]
+│   │   └── export_service.py     # CSV generators (Roster, Billing History, Hours)[cite: 2]
+│   │
+│   ├── utils/                    # Decorators, Helpers & Global Tools
+│   │   ├── __init__.py
+│   │   ├── decorators.py         # @tenant_required, @owner_only, @verify_staff_pin[cite: 2]
+│   │   ├── error_handlers.py     # Standardized JSON errors[cite: 2]
+│   │   └── formatters.py         # Phone (+213), Currency (DZD), Date/Time utilities[cite: 2]
+│   │
+│   └── tasks/                    # Background Jobs & Automated Tasks
+│       ├── __init__.py
+│       ├── cron_jobs.py          # Automated check-outs, overdue status checks, renewal triggers[cite: 2]
+│       └── scheduler.py          # APScheduler / Celery setup for cron execution
+│
+├── tests/                        # Automated Pytest Suite[cite: 2]
+│   ├── __init__.py
+│   ├── conftest.py               # Academy fixtures, tenant context mocks, database setup[cite: 2]
+│   ├── unit/                     # Domain & service layer calculation tests[cite: 2]
+│   │   ├── test_billing_cycles.py
+│   │   ├── test_payroll_calc.py
+│   │   └── test_pin_auth.py
+│   └── integration/              # Security, Multi-tenancy & API Endpoint tests[cite: 2]
+│       ├── test_tenant_isolation.py
+│       ├── test_attendance_flow.py
+│       └── test_calendar_drag.py
+│
+├── migrations/                   # Database Migration Scripts (Flask-Migrate)[cite: 2]
+├── docs/                         # OpenAPI / Swagger Specification Files[cite: 2]
+├── .env                          # Local Environment Variables (DB URL, JWT Secret)[cite: 2]
+├── .env.example                  # Template Environment file[cite: 2]
+├── .gitignore                    # Excludes venv, __pycache__, .env
+├── Dockerfile                    # Containerization setup[cite: 2]
+├── docker-compose.yml            # Services orchestration (Flask App + MySQL/MariaDB)[cite: 2]
+├── pytest.ini                    # Pytest Configuration[cite: 1]
+├── requirements.txt              # Production Python dependencies[cite: 1]
+└── run.py                        # Entry point to launch the Flask application[cite: 1]

@@ -1,0 +1,253 @@
+venv ❯ pytest -v
+==================================================================== test session starts =====================================================================
+platform linux -- Python 3.14.7, pytest-8.4.1, pluggy-1.6.0 -- /home/reyushi/repos/academy/Vinta-OS-backend/venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/reyushi/repos/academy/Vinta-OS-backend
+configfile: pytest.ini
+testpaths: tests
+plugins: cov-6.2.1, flask-1.3.0
+collected 53 items
+
+tests/integration/test_attendance_flow.py::TestCheckInFlow::test_check_in_student PASSED                                                               [  1%]
+tests/integration/test_attendance_flow.py::TestCheckInFlow::test_check_in_creates_activity_log FAILED                                                  [  3%]
+tests/integration/test_attendance_flow.py::TestCheckOutFlow::test_check_out_student FAILED                                                             [  5%]
+tests/integration/test_attendance_flow.py::TestCheckOutFlow::test_check_out_without_check_in_fails FAILED                                              [  7%]
+tests/integration/test_attendance_flow.py::TestSessionRoster::test_get_empty_roster FAILED                                                             [  9%]
+tests/integration/test_attendance_flow.py::TestSessionRoster::test_add_student_to_session FAILED                                                       [ 11%]
+tests/integration/test_attendance_flow.py::TestSessionRoster::test_duplicate_add_is_idempotent FAILED                                                  [ 13%]
+tests/integration/test_attendance_flow.py::TestAutoCheckout::test_auto_checkout_triggers FAILED                                                        [ 15%]
+tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session FAILED                                                                   [ 16%]
+tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session_snaps_to_5min FAILED                                                     [ 18%]
+tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session_missing_fields FAILED                                                    [ 20%]
+tests/integration/test_calendar_drag.py::TestSessionCRUD::test_get_week_sessions FAILED                                                                [ 22%]
+tests/integration/test_calendar_drag.py::TestSessionCRUD::test_get_day_sessions FAILED                                                                 [ 24%]
+tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_to_different_time FAILED                                               [ 26%]
+tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_to_different_day FAILED                                                [ 28%]
+tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_snaps_time FAILED                                                   [ 30%]
+tests/integration/test_calendar_drag.py::TestSessionDragMove::test_cancel_session FAILED                                                                [ 32%]
+tests/integration/test_calendar_drag.py::TestScheduleGeneration::test_create_schedule_generates_sessions FAILED                                           [ 33%]
+tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_cannot_list_other_academy_students PASSED                                           [ 35%]
+tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_same_academy_access_allowed FAILED                                                  [ 37%]
+tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_missing_academy_header_returns_400 PASSED                                           [ 39%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_login_success PASSED                                                                 [ 41%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_login_invalid_password PASSED                                                        [ 43%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_login_nonexistent_email PASSED                                                       [ 45%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_success PASSED                                                            [ 47%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_verify_pin_invalid PASSED                                                            [ 49%]
+tests/integration/test_tenant_isolation.py::TestAuthentication::test_protected_route_without_token PASSED                                                 [ 50%]
+tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_paid_when_paid_date_set PASSED                                                [ 52%]
+tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_due_when_not_yet_paid PASSED                                                  [ 54%]
+tests/unit/test_billing_cycles.py::TestBillingStatusDerivation::test_status_overdue_when_past_due PASSED                                                  [ 56%]
+tests/unit/test_billing_cycles.py::TestAgingBuckets::test_recent_bucket_1_to_7_days PASSED                                                                [ 58%]
+tests/unit/test_billing_cycles.py::TestAgingBuckets::test_aging_bucket_8_to_30_days PASSED                                                                [ 60%]
+tests/unit/test_billing_cycles.py::TestAgingBuckets::test_critical_bucket_30plus_days PASSED                                                              [ 62%]
+tests/unit/test_billing_cycles.py::TestDaysOverdue::test_positive_when_overdue PASSED                                                                     [ 64%]
+tests/unit/test_billing_cycles.py::TestDaysOverdue::test_zero_when_not_overdue PASSED                                                                     [ 66%]
+tests/unit/test_billing_cycles.py::TestDaysOverdue::test_zero_when_due_today PASSED                                                                       [ 67%]
+tests/unit/test_billing_cycles.py::TestPaymentPlans::test_plan_creation PASSED                                                                            [ 69%]
+tests/unit/test_billing_cycles.py::TestPaymentPlans::test_term_plan_duration PASSED                                                                       [ 71%]
+tests/unit/test_payroll_calc.py::TestHourlyPayroll::test_hourly_rate_calculation FAILED                                                                   [ 73%]
+tests/unit/test_payroll_calc.py::TestHourlyPayroll::test_zero_hours_payroll PASSED                                                                        [ 75%]
+tests/unit/test_payroll_calc.py::TestPerStudentPayroll::test_per_student_rate_calculation FAILED                                                          [ 77%]
+tests/unit/test_payroll_calc.py::TestPayrollStatus::test_initial_status_is_pending PASSED                                                                 [ 79%]
+tests/unit/test_payroll_calc.py::TestPayrollStatus::test_settle_sets_paid_date PASSED                                                                     [ 81%]
+tests/unit/test_pin_auth.py::TestPinHashing::test_hash_pin_returns_string PASSED                                                                          [ 83%]
+tests/unit/test_pin_auth.py::TestPinHashing::test_verify_pin_success PASSED                                                                               [ 84%]
+tests/unit/test_pin_auth.py::TestPinHashing::test_verify_pin_failure PASSED                                                                               [ 86%]
+tests/unit/test_pin_auth.py::TestPinHashing::test_set_pin_updates_hash PASSED                                                                             [ 88%]
+tests/unit/test_pin_auth.py::TestPasswordAuth::test_hash_password PASSED                                                                                  [ 90%]
+tests/unit/test_pin_auth.py::TestPasswordAuth::test_verify_password_success PASSED                                                                        [ 92%]
+tests/unit/test_pin_auth.py::TestPasswordAuth::test_verify_password_failure PASSED                                                                        [ 94%]
+tests/unit/test_pin_auth.py::TestPasswordAuth::test_no_password_returns_false PASSED                                                                      [ 96%]
+tests/unit/test_pin_auth.py::TestRoleChecks::test_is_owner PASSED                                                                                         [ 98%]
+tests/unit/test_pin_auth.py::TestRoleChecks::test_is_not_owner_for_staff PASSED                                                                           [100%]
+
+=========================================================================== FAILURES ============================================================================
+______________________________________________________ TestCheckInFlow.test_check_in_creates_activity_log _______________________________________________________
+tests/integration/test_attendance_flow.py:50: in test_check_in_creates_activity_log
+    assert log is not None
+E   assert None is not None
+____________________________________________________________ TestCheckOutFlow.test_check_out_student ____________________________________________________________
+tests/integration/test_attendance_flow.py:83: in test_check_out_student
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+____________________________________________________ TestCheckOutFlow.test_check_out_without_check_in_fails _____________________________________________________
+tests/integration/test_attendance_flow.py:97: in test_check_out_without_check_in_fails
+    assert resp.status_code == 404
+E   assert 403 == 404
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+____________________________________________________________ TestSessionRoster.test_get_empty_roster ____________________________________________________________
+tests/integration/test_attendance_flow.py:110: in test_get_empty_roster
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+_________________________________________________________ TestSessionRoster.test_add_student_to_session _________________________________________________________
+tests/integration/test_attendance_flow.py:124: in test_add_student_to_session
+    assert resp.status_code == 201
+E   assert 403 == 201
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+______________________________________________________ TestSessionRoster.test_duplicate_add_is_idempotent _______________________________________________________
+tests/integration/test_attendance_flow.py:141: in test_duplicate_add_is_idempotent
+    assert resp.status_code == 200  # Returns existing
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+_________________________________________________________ TestAutoCheckout.test_auto_checkout_triggers __________________________________________________________
+tests/integration/test_attendance_flow.py:167: in test_auto_checkout_triggers
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+______________________________________________________________ TestSessionCRUD.test_create_session ______________________________________________________________
+tests/integration/test_calendar_drag.py:29: in test_create_session
+    assert resp.status_code == 201
+E   assert 403 == 201
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+_______________________________________________________ TestSessionCRUD.test_create_session_snaps_to_5min _______________________________________________________
+tests/integration/test_calendar_drag.py:48: in test_create_session_snaps_to_5min
+    assert resp.status_code == 201
+E   assert 403 == 201
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+______________________________________________________ TestSessionCRUD.test_create_session_missing_fields _______________________________________________________
+tests/integration/test_calendar_drag.py:60: in test_create_session_missing_fields
+    assert resp.status_code == 400
+E   assert 403 == 400
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+____________________________________________________________ TestSessionCRUD.test_get_week_sessions _____________________________________________________________
+tests/integration/test_calendar_drag.py:68: in test_get_week_sessions
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+_____________________________________________________________ TestSessionCRUD.test_get_day_sessions _____________________________________________________________
+tests/integration/test_calendar_drag.py:79: in test_get_day_sessions
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+____________________________________________________ TestSessionDragMove.test_move_session_to_different_time ____________________________________________________
+tests/integration/test_calendar_drag.py:95: in test_move_session_to_different_time
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+____________________________________________________ TestSessionDragMove.test_move_session_to_different_day _____________________________________________________
+tests/integration/test_calendar_drag.py:108: in test_move_session_to_different_day
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+_______________________________________________________ TestSessionDragMove.test_move_session_snaps_time ________________________________________________________
+tests/integration/test_calendar_drag.py:119: in test_move_session_snaps_time
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+____________________________________________________________ TestSessionDragMove.test_cancel_session ____________________________________________________________
+tests/integration/test_calendar_drag.py:129: in test_cancel_session
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+________________________________________________ TestScheduleGeneration.test_create_schedule_generates_sessions _________________________________________________
+tests/integration/test_calendar_drag.py:152: in test_create_schedule_generates_sessions
+    assert resp.status_code == 201
+E   assert 403 == 201
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+_____________________________________________________ TestTenantIsolation.test_same_academy_access_allowed ______________________________________________________
+tests/integration/test_tenant_isolation.py:71: in test_same_academy_access_allowed
+    assert resp.status_code == 200
+E   assert 403 == 200
+E    +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+________________________________________________________ TestHourlyPayroll.test_hourly_rate_calculation _________________________________________________________
+tests/unit/test_payroll_calc.py:40: in test_hourly_rate_calculation
+    assert float(result["total_hours"]) == 3.0
+E   assert 0.0 == 3.0
+E    +  where 0.0 = float(0.0)
+____________________________________________________ TestPerStudentPayroll.test_per_student_rate_calculation ____________________________________________________
+tests/unit/test_payroll_calc.py:76: in test_per_student_rate_calculation
+    assert result["total_students"] >= 1
+E   assert 0 >= 1
+======================================================================== tests coverage =========================================================================
+________________________________________________________ coverage: platform linux, python 3.14.7-final-0 ________________________________________________________
+
+Name                                 Stmts   Miss  Cover   Missing
+------------------------------------------------------------------
+app/__init__.py                         44      1    98%   68
+app/config.py                           33      0   100%
+app/extensions.py                       10      0   100%
+app/models/__init__.py                  10      0   100%
+app/models/academy.py                   62      3    95%   53, 98, 133
+app/models/attendance.py                21      1    95%   54
+app/models/audit.py                     20      1    95%   56
+app/models/billing.py                   50      3    94%   38, 86, 118
+app/models/class_room.py                45      3    93%   36, 85, 111
+app/models/notification.py              21      1    95%   54
+app/models/scheduling.py                42      2    95%   44, 100
+app/models/student.py                   50      4    92%   56, 59, 87, 120
+app/models/teacher.py                   59      4    93%   65, 68, 114, 147
+app/models/user.py                      45      2    96%   85, 92
+app/routes/__init__.py                   0      0   100%
+app/routes/analytics.py                 64     44    31%   25-72, 91-94, 106-131
+app/routes/attendance.py                57     25    56%   52-64, 80-90, 101-102, 113-124
+app/routes/auth.py                     118     80    32%   21-40, 52, 68-78, 104, 120-159, 170-205, 215-224, 231-236
+app/routes/billing.py                  112     62    45%   19-21, 32-45, 61-68, 79-101, 109-111, 122-125, 133-135, 143-146, 154-157, 170-174, 182-191
+app/routes/calendar.py                  88     53    40%   23-34, 48-53, 67-95, 106-118, 131-137, 145-147, 158-171
+app/routes/classes.py                  160    107    33%   24-26, 39-52, 62-94, 102-126, 148-166, 178-193, 201-215, 228-259, 273-283, 293-308, 319-332
+app/routes/notifications.py             67     39    42%   25-41, 63-71, 79-92, 100-115, 126-149
+app/routes/settings.py                 193    114    41%   22-24, 44-55, 63-68, 83-97, 106-111, 130-142, 151-155, 172-189, 200-202, 225-249, 262-272, 281-290, 300-302, 320-329, 340-345
+app/routes/students.py                 110     68    38%   22-27, 35-37, 45-49, 60-83, 91-101, 113-121, 132-142, 155-163, 185-208
+app/routes/teachers.py                  88     56    36%   21-56, 64-74, 86-115, 140-163, 175-193, 205-215
+app/services/__init__.py                 0      0   100%
+app/services/attendance_service.py      62     40    35%   23-25, 63-88, 96-119, 124-140, 147-174
+app/services/audit_service.py           32     32     0%   5-104
+app/services/auth_service.py            43     22    49%   44, 64-67, 72-81, 86-95, 100
+app/services/billing_service.py        106     89    16%   17-18, 31-40, 45-54, 78-118, 131-160, 168-205, 210-230, 245-285, 290-307
+app/services/export_service.py          66     53    20%   21-52, 60-87, 95-121, 129-160
+app/services/payroll_service.py         78     53    32%   23, 80-119, 124-148, 155-165, 170-177, 197-232
+app/services/scheduling_service.py      89     70    21%   21-24, 29, 34-42, 47-52, 57-100, 108-122, 127-135, 144-189, 196-199, 204
+app/services/student_service.py        110     94    15%   16-24, 34-61, 66-123, 128-137, 142-165, 171-197, 202-222, 229-259, 278-290
+app/services/tenant_service.py          33     23    30%   22-73, 83-95, 102-114, 119-120
+app/tasks/__init__.py                    0      0   100%
+app/tasks/cron_jobs.py                  71     71     0%   6-148
+app/tasks/scheduler.py                  23     23     0%   5-48
+app/utils/__init__.py                    0      0   100%
+app/utils/decorators.py                 63     22    65%   25, 35, 42, 58-70, 85-90, 95, 98
+app/utils/error_handlers.py             26      8    69%   13, 17, 21, 25, 29, 33, 37, 41
+app/utils/formatters.py                 62     38    39%   20-33, 38-40, 47, 52-53, 60, 70-71, 95-98, 103-109, 117-121, 128-133
+------------------------------------------------------------------
+TOTAL                                 2433   1311    46%
+Coverage HTML written to dir htmlcov
+==================================================================== short test summary info ====================================================================
+FAILED tests/integration/test_attendance_flow.py::TestCheckInFlow::test_check_in_creates_activity_log - assert None is not None
+FAILED tests/integration/test_attendance_flow.py::TestCheckOutFlow::test_check_out_student - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_attendance_flow.py::TestCheckOutFlow::test_check_out_without_check_in_fails - assert 403 == 404
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_attendance_flow.py::TestSessionRoster::test_get_empty_roster - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_attendance_flow.py::TestSessionRoster::test_add_student_to_session - assert 403 == 201
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_attendance_flow.py::TestSessionRoster::test_duplicate_add_is_idempotent - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_attendance_flow.py::TestAutoCheckout::test_auto_checkout_triggers - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session - assert 403 == 201
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session_snaps_to_5min - assert 403 == 201
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_calendar_drag.py::TestSessionCRUD::test_create_session_missing_fields - assert 403 == 400
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_calendar_drag.py::TestSessionCRUD::test_get_week_sessions - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_calendar_drag.py::TestSessionCRUD::test_get_day_sessions - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_to_different_time - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_to_different_day - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_calendar_drag.py::TestSessionDragMove::test_move_session_snaps_time - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_calendar_drag.py::TestSessionDragMove::test_cancel_session - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_calendar_drag.py::TestScheduleGeneration::test_create_schedule_generates_sessions - assert 403 == 201
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/integration/test_tenant_isolation.py::TestTenantIsolation::test_same_academy_access_allowed - assert 403 == 200
+ +  where 403 = <WrapperTestResponse streamed [403 FORBIDDEN]>.status_code
+FAILED tests/unit/test_payroll_calc.py::TestHourlyPayroll::test_hourly_rate_calculation - assert 0.0 == 3.0
+ +  where 0.0 = float(0.0)
+FAILED tests/unit/test_payroll_calc.py::TestPerStudentPayroll::test_per_student_rate_calculation - assert 0 >= 1
