@@ -1,5 +1,4 @@
 # Python
-vevn/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -11,7 +10,7 @@ build/
 
 # Virtual Environment
 venv/
-env/
+
 .venv/
 
 # Environment Variables

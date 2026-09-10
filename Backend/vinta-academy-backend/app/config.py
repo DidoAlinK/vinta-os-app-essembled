@@ -2,7 +2,7 @@
 Vinta School OS — Configuration Environments
 Dev, Test, and Production configurations for the Flask application.
 """
-import os
+import os,secrets
 from datetime import timedelta
 from dotenv import load_dotenv
 
@@ -12,11 +12,17 @@ load_dotenv()
 class BaseConfig:
     """Shared configuration across all environments."""
 
-    SECRET_KEY = os.getenv("SECRET_KEY", "vinta-change-this-in-production")
+    SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    secrets.token_hex(32)  # 64-character hex string
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # JWT Configuration
-    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "vinta-jwt-change-this")
+    JWT_SECRET_KEY = os.getenv(
+    "JWT_SECRET_KEY",
+    secrets.token_hex(32)  # 64-character hex string
+    )
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     JWT_TOKEN_LOCATION = ["headers"]
@@ -29,7 +35,7 @@ class BaseConfig:
     # SQLAlchemy
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
-        "mysql+pymysql://root:password@localhost:3306/vinta_school_dev",
+        "mysql+pymysql://root:03112006@localhost:3306/vinta_school_dev",
     )
 
     # Flask-Migrate
