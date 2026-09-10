@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '../../lib/cn'
 import { Card, CardHeader, CardBody } from '../../components/ui/Card'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import type { AcademySettings } from '../../types/settings'
-import { Save } from 'lucide-react'
+import { Save, Plus, X, Trash2 } from 'lucide-react'
 
 /* ─── Props ─── */
 
@@ -13,13 +13,22 @@ export interface BillingConfigProps {
   onUpdate: (data: Partial<AcademySettings>) => void
 }
 
-/* ─── Duration presets ─── */
+/* ─── Types ─── */
 
-const DURATION_PRESETS = [
-  { value: 30, label: '1 Month' },
-  { value: 60, label: '2 Months' },
-  { value: 90, label: '3 Months' },
-  { value: 180, label: '6 Months' },
+interface BillingPreset {
+  id: string
+  label: string
+  days: number
+}
+
+/* ─── Constants ─── */
+
+const PRESETS_STORAGE_KEY = 'vinta_billing_presets'
+
+const DEFAULT_PRESETS: BillingPreset[] = [
+  { id: 'default-1m', label: '1 Month', days: 30 },
+  { id: 'default-3m', label: '3 Months', days: 90 },
+  { id: 'default-6m', label: '6 Months', days: 180 },
 ]
 
 const CURRENCY_OPTIONS = [
@@ -29,6 +38,27 @@ const CURRENCY_OPTIONS = [
 ]
 
 const REMINDER_PRESETS = [1, 2, 3, 5, 7]
+
+/* ─── Helpers ─── */
+
+function loadPresets(): BillingPreset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch {
+    // corrupt storage
+  }
+  // First load → seed defaults
+  localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(DEFAULT_PRESETS))
+  return DEFAULT_PRESETS
+}
+
+function savePresets(presets: BillingPreset[]) {
+  localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets))
+}
 
 /* ─── Component ─── */
 
@@ -42,8 +72,48 @@ export function BillingConfig({ settings, onUpdate }: BillingConfigProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  // Preset system
+  const [presets, setPresets] = useState<BillingPreset[]>(loadPresets)
+  const [showAddPreset, setShowAddPreset] = useState(false)
+  const [newPresetLabel, setNewPresetLabel] = useState('')
+  const [newPresetDays, setNewPresetDays] = useState('')
+
+  // Persist presets whenever they change (but not on first render)
+  const [initialized, setInitialized] = useState(false)
+  useEffect(() => {
+    if (initialized) {
+      savePresets(presets)
+    } else {
+      setInitialized(true)
+    }
+  }, [presets, initialized])
+
   const handleChange = (field: string, value: string | number) => {
     setForm((prev) => ({ ...prev, [field]: value }))
+    setSaved(false)
+  }
+
+  const handleAddPreset = () => {
+    const days = parseInt(newPresetDays, 10)
+    const label = newPresetLabel.trim()
+    if (!days || days <= 0 || !label) return
+
+    const newPreset: BillingPreset = {
+      id: `preset-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      label,
+      days,
+    }
+
+    setPresets((prev) => [...prev, newPreset])
+    setForm((prev) => ({ ...prev, default_plan_duration: days }))
+    setNewPresetLabel('')
+    setNewPresetDays('')
+    setShowAddPreset(false)
+    setSaved(false)
+  }
+
+  const handleRemovePreset = (id: string) => {
+    setPresets((prev) => prev.filter((p) => p.id !== id))
     setSaved(false)
   }
 
@@ -90,31 +160,123 @@ export function BillingConfig({ settings, onUpdate }: BillingConfigProps) {
         </CardBody>
       </Card>
 
-      {/* Plan Duration */}
+      {/* Plan Duration — Preset System */}
       <Card>
         <CardHeader title="Plan Duration" />
         <CardBody>
           <p className="text-sm text-[var(--muted)] mb-3">
             Default billing cycle for new student enrollments.
           </p>
-          <div className="flex gap-2 flex-wrap">
-            {DURATION_PRESETS.map((preset) => (
-              <button
-                key={preset.value}
-                type="button"
-                onClick={() => handleChange('default_plan_duration', preset.value)}
+
+          {/* Preset grid */}
+          <div className="flex gap-2 flex-wrap mb-3">
+            {presets.map((preset) => (
+              <div
+                key={preset.id}
                 className={cn(
+                  'group relative flex items-center gap-1.5',
                   'px-4 py-2 text-sm font-medium rounded-[var(--radius-xs)]',
                   'border transition-all duration-200',
-                  form.default_plan_duration === preset.value
+                  form.default_plan_duration === preset.days
                     ? 'bg-[var(--gold-soft)] border-[var(--gold)] text-[var(--gold)]'
                     : 'bg-[var(--input-bg)] border-[var(--glass-border)] text-[var(--muted)] hover:text-[var(--text)]',
                 )}
               >
-                {preset.label}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => handleChange('default_plan_duration', preset.days)}
+                  className="flex-1 text-left"
+                >
+                  {preset.label} <span className="opacity-50 text-xs">({preset.days}d)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemovePreset(preset.id)}
+                  className={cn(
+                    'shrink-0 p-0.5 rounded',
+                    'opacity-0 group-hover:opacity-100',
+                    'hover:bg-[var(--red-soft)] text-[var(--muted)] hover:text-[var(--red)]',
+                    'transition-all duration-150',
+                  )}
+                  aria-label={`Remove ${preset.label}`}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
             ))}
           </div>
+
+          {/* Create Preset */}
+          {!showAddPreset ? (
+            <button
+              type="button"
+              onClick={() => setShowAddPreset(true)}
+              className={cn(
+                'px-3 py-2 text-sm font-medium rounded-[var(--radius-xs)]',
+                'border border-dashed border-[var(--muted)]/30',
+                'text-[var(--muted)] hover:text-[var(--text)]',
+                'hover:border-[var(--muted)]/60 hover:bg-[var(--input-bg)]',
+                'transition-all duration-200',
+              )}
+            >
+              <Plus size={14} className="inline mr-1" />
+              Create a Preset
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newPresetLabel}
+                onChange={(e) => setNewPresetLabel(e.target.value)}
+                placeholder="Label (e.g. 4 Months)"
+                className={cn(
+                  'px-3 py-1.5 text-sm rounded-[var(--radius-xs)]',
+                  'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                  'text-[var(--text)] placeholder:text-[var(--muted)]/50',
+                  'outline-none focus:ring-1 focus:ring-[var(--gold)]/30',
+                  'w-36',
+                )}
+              />
+              <input
+                type="number"
+                value={newPresetDays}
+                onChange={(e) => setNewPresetDays(e.target.value)}
+                placeholder="Days"
+                min={1}
+                className={cn(
+                  'px-3 py-1.5 text-sm rounded-[var(--radius-xs)]',
+                  'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                  'text-[var(--text)] placeholder:text-[var(--muted)]/50',
+                  'outline-none focus:ring-1 focus:ring-[var(--gold)]/30',
+                  'w-20',
+                )}
+              />
+              <button
+                type="button"
+                onClick={handleAddPreset}
+                disabled={!newPresetLabel.trim() || !newPresetDays}
+                className={cn(
+                  'px-2.5 py-1.5 text-sm font-medium rounded-[var(--radius-xs)]',
+                  'bg-[var(--gold)] text-white',
+                  'hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed',
+                  'transition-all duration-200',
+                )}
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddPreset(false)
+                  setNewPresetLabel('')
+                  setNewPresetDays('')
+                }}
+                className="p-1.5 rounded-[var(--radius-xs)] hover:bg-[var(--input-bg)] text-[var(--muted)] transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
         </CardBody>
       </Card>
 

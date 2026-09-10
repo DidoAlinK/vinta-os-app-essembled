@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { X } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import {
   getCurrentHour,
@@ -14,6 +15,17 @@ import {
   HOUR_HEIGHT,
 } from '../../lib/constants'
 import type { Session } from '../../types/class'
+
+/* ─── Helpers ─── */
+
+/** Convert hex color to an rgba string with the given alpha */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 /* ─── Types ─── */
 
@@ -108,6 +120,11 @@ export function AgendaBoard({
 }: AgendaBoardProps) {
   const [now, setNow] = useState(getCurrentHour)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [overlapPopup, setOverlapPopup] = useState<{
+    sessions: Session[]
+    x: number
+    y: number
+  } | null>(null)
 
   // Use the currentDate from parent navigation, falling back to today
   const anchorDate = currentDate ?? new Date()
@@ -164,13 +181,53 @@ export function AgendaBoard({
   const nowOffset = (now - CALENDAR_HOURS[0]) * HOUR_HEIGHT
   const showNowLine = now >= CALENDAR_HOURS[0] && now <= CALENDAR_HOURS[CALENDAR_HOURS.length - 1] + 1
 
+  // Close overlap popup when clicking outside
+  const closeOverlapPopup = useCallback(() => setOverlapPopup(null), [])
+  useEffect(() => {
+    if (!overlapPopup) return
+    const handler = () => setOverlapPopup(null)
+    // Use setTimeout to avoid immediately closing from the same click
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handler)
+    }, 0)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('click', handler)
+    }
+  }, [overlapPopup])
+
+  /** Handle click on a session block — show popup if overlapping sessions exist */
+  const handleSessionClick = useCallback(
+    (session: Session, e: React.MouseEvent) => {
+      e.stopPropagation()
+      // Find all sessions on the same date that overlap with this one
+      const sameDay = sessions.filter((s) => s.date === session.date)
+      const overlapping = sameDay.filter(
+        (s) => s.start_hour < session.end_hour && s.end_hour > session.start_hour,
+      )
+      if (overlapping.length > 1) {
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+        // Position popup near the clicked block, clamped to viewport
+        const x = Math.min(rect.right + 8, window.innerWidth - 280)
+        const y = Math.min(rect.top, window.innerHeight - 200)
+        setOverlapPopup({ sessions: overlapping, x, y })
+      } else {
+        onSelectSession(session)
+      }
+    },
+    [sessions, onSelectSession],
+  )
+
   return (
     <div className="relative flex flex-col h-full rounded-[var(--radius-lg)] border border-[var(--glass-border)] bg-[var(--glass)] backdrop-blur-[22px] overflow-hidden">
       {/* ── Toolbar ── */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--glass-border)]">
-        <h2 className="text-base font-semibold font-[family-name:var(--font-heading)] text-[var(--text)]">
-          Agenda
-        </h2>
+        <div>
+          <h2 className="text-base font-semibold font-[family-name:var(--font-heading)] text-[var(--text)]">
+            Schedule &amp; class agenda
+          </h2>
+          <p className="text-[11px] text-[var(--muted)] mt-0.5">Read-only view · click a block for details</p>
+        </div>
 
         {/* Week / Day toggle */}
         <div className="flex rounded-lg bg-[var(--input-bg)] p-0.5 border border-[var(--glass-border)]">
@@ -201,45 +258,47 @@ export function AgendaBoard({
         </div>
       </div>
 
-      {/* ── Day-header row ── */}
-      <div className="flex shrink-0 border-b border-[var(--glass-border)]">
-        {/* time-column spacer */}
-        <div className="w-16 shrink-0" />
-
-        {days.map((day) => {
-          const key = formatDateISO(day)
-          const today = isToday(day)
-          return (
-            <div
-              key={key}
-              className={cn(
-                'flex-1 text-center py-2.5 border-l border-[var(--glass-border)]',
-                today && 'bg-[var(--gold-soft)]/20',
-              )}
-            >
-              <div
-                className={cn(
-                  'text-[10px] uppercase tracking-wider font-medium',
-                  today ? 'text-[var(--gold)]' : 'text-[var(--muted)]',
-                )}
-              >
-                {getDayName(day)}
-              </div>
-              <div
-                className={cn(
-                  'text-sm font-semibold font-[family-name:var(--font-heading)]',
-                  today ? 'text-[var(--gold)]' : 'text-[var(--text)]',
-                )}
-              >
-                {day.getDate()}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
       {/* ── Scrollable time grid ── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+        {/* ── Day-header row (sticky inside scroll container) ── */}
+        <div className="flex shrink-0 border-b border-[var(--glass-border)] bg-[var(--glass)] backdrop-blur-[22px] sticky top-0 z-10">
+          {/* time-column spacer */}
+          <div className="w-16 shrink-0" />
+
+          {days.map((day, i) => {
+            const key = formatDateISO(day)
+            const today = isToday(day)
+            return (
+              <div
+                key={key}
+                className={cn(
+                  'flex-1 text-center py-2.5',
+                  i > 0 && 'border-l border-[var(--divider)]',
+                  today && 'bg-[var(--gold-soft)]/20',
+                )}
+              >
+                <div
+                  className={cn(
+                    'text-[10px] uppercase tracking-wider font-medium',
+                    today ? 'text-[var(--gold)]' : 'text-[var(--muted)]',
+                  )}
+                >
+                  {getDayName(day)}
+                </div>
+                <div
+                  className={cn(
+                    'text-sm font-semibold font-[family-name:var(--font-heading)]',
+                    today ? 'text-[var(--gold)]' : 'text-[var(--text)]',
+                  )}
+                >
+                  {day.getDate()}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ── Time grid ── */}
         <div className="flex relative" style={{ height: totalHeight }}>
           {/* Time labels */}
           <div className="w-16 shrink-0">
@@ -253,7 +312,7 @@ export function AgendaBoard({
           </div>
 
           {/* Day columns */}
-          {days.map((day) => {
+          {days.map((day, i) => {
             const dateKey = formatDateISO(day)
             const daySessions = positionedByDay.get(dateKey) ?? []
             const today = isToday(day)
@@ -262,7 +321,8 @@ export function AgendaBoard({
               <div
                 key={dateKey}
                 className={cn(
-                  'flex-1 relative border-l border-[var(--glass-border)]',
+                  'flex-1 relative',
+                  i > 0 && 'border-l border-[var(--divider)]',
                   today && 'bg-[var(--gold-soft)]/[0.04]',
                 )}
               >
@@ -282,13 +342,14 @@ export function AgendaBoard({
                   const left = `${(col / totalCols) * 100}%`
                   const width = `${(1 / totalCols) * 100}%`
                   const isSelected = session.id === selectedSessionId
+                  const sessionColor = session.color || '#b3872a'
 
                   return (
                     <div
                       key={session.id}
                       role="button"
                       tabIndex={0}
-                      onClick={() => onSelectSession(session)}
+                      onClick={(e) => handleSessionClick(session, e)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
@@ -298,7 +359,8 @@ export function AgendaBoard({
                       className={cn(
                         'absolute rounded-md px-1.5 py-1 cursor-pointer overflow-hidden',
                         'transition-all duration-150',
-                        'hover:brightness-110 hover:shadow-lg hover:z-10',
+                        'border-l-[3px]',
+                        'hover:shadow-lg hover:z-10',
                         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]',
                         isSelected && [
                           'ring-2 ring-[var(--gold)] z-10',
@@ -310,21 +372,22 @@ export function AgendaBoard({
                         height,
                         left,
                         width,
-                        backgroundColor: session.color || 'var(--gold)',
+                        backgroundColor: hexToRgba(sessionColor, 0.15),
+                        borderLeftColor: sessionColor,
                       }}
                     >
                       {height > 28 && (
-                        <p className="text-white text-[10px] font-semibold leading-tight truncate drop-shadow-sm">
+                        <p className="text-[10px] font-semibold leading-tight truncate" style={{ color: sessionColor }}>
                           {session.class_name}
                         </p>
                       )}
                       {height > 46 && (
-                        <p className="text-white/80 text-[9px] leading-tight truncate">
+                        <p className="text-[9px] leading-tight truncate text-[var(--muted)]">
                           {formatTime12(session.start_hour)}
                         </p>
                       )}
                       {height > 62 && (
-                        <p className="text-white/65 text-[9px] leading-tight truncate mt-0.5">
+                        <p className="text-[9px] leading-tight truncate mt-0.5 text-[var(--muted)]">
                           {session.teacher_name}
                         </p>
                       )}
@@ -347,6 +410,63 @@ export function AgendaBoard({
           })}
         </div>
       </div>
+
+      {/* ── Overlap popup ── */}
+      {overlapPopup && (
+        <div
+          className="fixed z-50 w-[260px] rounded-xl border border-[var(--glass-border)] bg-[var(--glass)] backdrop-blur-xl shadow-2xl animate-fade-in"
+          style={{ left: overlapPopup.x, top: overlapPopup.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--glass-border)]">
+            <span className="text-xs font-semibold text-[var(--text)]">
+              {overlapPopup.sessions.length} sessions
+            </span>
+            <button
+              onClick={closeOverlapPopup}
+              className="p-0.5 rounded hover:bg-[var(--glass)] text-[var(--muted)]"
+            >
+              <X size={12} />
+            </button>
+          </div>
+          <div className="max-h-[160px] overflow-y-auto">
+            {overlapPopup.sessions.map((s) => {
+              const sc = s.color || '#b3872a'
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    onSelectSession(s)
+                    setOverlapPopup(null)
+                  }}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 text-left',
+                    'hover:bg-[var(--glass)] transition-colors',
+                    'border-b border-[var(--glass-border)]/40 last:border-b-0',
+                  )}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: sc }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-[var(--text)] truncate">
+                      {s.class_name}
+                    </p>
+                    <p className="text-[10px] text-[var(--muted)]">
+                      {formatTime12(s.start_hour)}–{formatTime12(s.end_hour)}
+                    </p>
+                    <p className="text-[10px] text-[var(--muted)]/70 truncate">
+                      {s.teacher_name}
+                    </p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Loading overlay ── */}
       {isLoading && (

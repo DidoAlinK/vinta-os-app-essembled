@@ -25,7 +25,7 @@ export function DangerZone() {
     if (!canConfirm) return
     setLoading(true)
     try {
-      await api.post('/settings/reset')
+      await api.post('/settings/reset-data')
       toast.success('Academy data has been reset.')
       setResetOpen(false)
       setConfirmText('')
@@ -41,7 +41,7 @@ export function DangerZone() {
     if (!canConfirm) return
     setLoading(true)
     try {
-      await api.delete('/settings/academy')
+      await api.put('/settings/academy', { confirm_delete: true })
       toast.success('Academy deleted. Redirecting...')
       setDeleteOpen(false)
       setConfirmText('')

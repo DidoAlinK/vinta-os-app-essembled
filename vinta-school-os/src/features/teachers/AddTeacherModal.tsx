@@ -4,16 +4,23 @@
  * contact info, contract type, and rate.
  */
 
-import { useCallback, useState } from 'react'
-import { X, UserPlus, Phone, BookOpen } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { X, UserPlus, Phone, BookOpen, ChevronDown, Search } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
 
 // ============================================
-// Constants
+// Types
 // ============================================
 
-const SUBJECTS = ['Math', 'French', 'English', 'Science', 'Other'] as const
+interface Subject {
+  name: string
+  color: string
+}
+
+// ============================================
+// Constants
+// ============================================
 
 const CONTRACT_LABELS = {
   hourly: 'Hourly',
@@ -43,6 +50,59 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
   const [rate, setRate] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Subjects from backend
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [subjectsLoading, setSubjectsLoading] = useState(false)
+
+  // Custom dropdown state
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  // Fetch subjects on mount
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    const fetchSubjects = async () => {
+      setSubjectsLoading(true)
+      try {
+        const res = await api.get<{ subjects: Subject[] }>('/subjects')
+        if (!cancelled) setSubjects(res.data.subjects ?? [])
+      } catch {
+        if (!cancelled) setSubjects([])
+      } finally {
+        if (!cancelled) setSubjectsLoading(false)
+      }
+    }
+    fetchSubjects()
+    return () => { cancelled = true }
+  }, [isOpen])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+        setSearchTerm('')
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [dropdownOpen])
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (dropdownOpen) searchRef.current?.focus()
+  }, [dropdownOpen])
+
+  const filteredSubjects = subjects.filter((s) =>
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+
+  const selectedSubject = subjects.find((s) => s.name === subject)
 
   const resetForm = useCallback(() => {
     setFirstName('')
@@ -171,20 +231,90 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
             </div>
           </Field>
 
-          {/* Subject */}
+          {/* Subject — custom dropdown */}
           <Field label="Subject">
-            <div className="relative">
-              <BookOpen size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
-              <select
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className={cn(inputCls, 'pl-9 appearance-none cursor-pointer')}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => { setDropdownOpen((o) => !o); setSearchTerm('') }}
+                className={cn(
+                  inputCls,
+                  'flex items-center gap-2 text-left',
+                  dropdownOpen && 'ring-2 ring-[var(--gold)]/30',
+                )}
               >
-                <option value="">Select subject…</option>
-                {SUBJECTS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+                <BookOpen size={14} className="text-[var(--muted)] shrink-0" />
+                {selectedSubject ? (
+                  <span className="flex items-center gap-2 truncate">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: selectedSubject.color }}
+                    />
+                    <span className="truncate">{selectedSubject.name}</span>
+                  </span>
+                ) : (
+                  <span className="text-[var(--muted)]/50">Select subject…</span>
+                )}
+                <ChevronDown size={14} className={cn('text-[var(--muted)] ml-auto shrink-0 transition-transform', dropdownOpen && 'rotate-180')} />
+              </button>
+
+              {dropdownOpen && (
+                <div className="absolute z-50 mt-1.5 w-full rounded-xl bg-[var(--card-bg)] border border-[var(--glass-border)] shadow-xl overflow-hidden animate-fade-in">
+                  {/* Search */}
+                  <div className="relative border-b border-[var(--glass-border)]">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+                    <input
+                      ref={searchRef}
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search subjects…"
+                      className={cn(
+                        'w-full pl-9 pr-3 py-2 text-sm text-[var(--text)]',
+                        'bg-transparent outline-none',
+                        'placeholder:text-[var(--muted)]/50',
+                      )}
+                    />
+                  </div>
+
+                  {/* Options */}
+                  <div className="max-h-48 overflow-y-auto py-1">
+                    {subjectsLoading ? (
+                      <div className="px-3 py-4 text-center text-xs text-[var(--muted)]">
+                        Loading subjects…
+                      </div>
+                    ) : filteredSubjects.length === 0 ? (
+                      <div className="px-3 py-4 text-center text-xs text-[var(--muted)]">
+                        {subjects.length === 0 ? 'No subjects yet' : 'No match'}
+                      </div>
+                    ) : (
+                      filteredSubjects.map((s) => (
+                        <button
+                          key={s.name}
+                          type="button"
+                          onClick={() => {
+                            setSubject(s.name)
+                            setDropdownOpen(false)
+                            setSearchTerm('')
+                          }}
+                          className={cn(
+                            'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left',
+                            'hover:bg-[var(--glass)] transition-colors duration-100',
+                            subject === s.name && 'bg-[var(--glass)] text-[var(--text)]',
+                            subject !== s.name && 'text-[var(--muted)]',
+                          )}
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: s.color }}
+                          />
+                          <span className="truncate">{s.name}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </Field>
 

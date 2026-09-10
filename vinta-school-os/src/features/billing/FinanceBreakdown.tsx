@@ -54,7 +54,7 @@ export function FinanceBreakdown({ isOpen, onClose, type }: FinanceBreakdownProp
     async function load() {
       setIsLoading(true)
       try {
-        const { data } = await api.get(`/billing/aging`, {
+        const { data } = await api.get(`/billing/aging-buckets`, {
           params: { type: activeTab },
         })
         if (!cancelled) {

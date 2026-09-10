@@ -117,6 +117,7 @@ export interface AuthState {
   login: (email: string, password: string) => Promise<void>
   signup: (academyName: string, email: string, password: string, pin: string) => Promise<SignupResponse>
   logout: () => void
+  switchProfile: () => void
   loadUser: () => Promise<void>
   loadProfiles: () => Promise<void>
   selectProfile: (profile: Profile) => void

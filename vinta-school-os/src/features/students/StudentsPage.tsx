@@ -14,6 +14,7 @@ import {
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
 import { formatCurrency } from '../../lib/formatters'
+import { toast } from '../../stores/uiStore'
 import StudentTable from './StudentTable'
 import StudentDrawer from './StudentDrawer'
 import StudentForm from './StudentForm'
@@ -85,13 +86,16 @@ export default function StudentsPage() {
           setStudents((prev) =>
             prev.map((s) => (s.id === selectedStudent.id ? { ...s, ...data } : s)),
           )
+          toast.success('Student updated successfully')
         } else {
           const { data } = await api.post('/students', formData)
           setStudents((prev) => [data, ...prev])
+          toast.success('Student created successfully')
         }
         setIsFormOpen(false)
       } catch (err) {
         console.error('[StudentsPage] Failed to save student', err)
+        toast.error('Failed to save. Please try again.')
       }
     },
     [selectedStudent],

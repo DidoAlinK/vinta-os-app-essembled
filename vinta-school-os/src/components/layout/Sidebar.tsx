@@ -20,6 +20,7 @@ export function Sidebar() {
   const location = useLocation()
   const user = useAuthStore(s => s.user)
   const logout = useAuthStore(s => s.logout)
+  const switchProfile = useAuthStore(s => s.switchProfile)
   const mobileOpen = useUIStore(s => s.mobileSidebarOpen)
   const setMobileOpen = useUIStore(s => s.setMobileSidebarOpen)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 900)
@@ -88,8 +89,16 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="px-3 pb-4">
+      {/* Account Actions */}
+      <div className="px-3 pb-4 space-y-1">
+        <button
+          onClick={() => { switchProfile(); navigate('/profile-picker') }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[14px] text-[13px] font-medium transition-colors"
+          style={{ color: 'var(--muted)' }}
+        >
+          <Users size={18} />
+          <span>Switch Profile</span>
+        </button>
         <button
           onClick={() => { logout(); navigate('/') }}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[14px] text-[13px] font-medium transition-colors"

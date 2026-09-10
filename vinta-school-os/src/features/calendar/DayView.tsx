@@ -130,10 +130,50 @@ export default function DayView({
 
   const handleResizeStart = useCallback(
     (session: CalendarSession, edge: 'top' | 'bottom') => {
-      if (edge === 'top') return // only bottom resize supported in day view
+      const durationMinutes = timeToDecimal(session.end_time) * 60 - timeToDecimal(session.start_time) * 60
 
-      const startY = session.top + session.height
-      let currentY = startY
+      if (edge === 'top') {
+        // Top-edge resize: drag upward to extend start time earlier
+        let currentY = session.top
+
+        const handleMouseMove = (e: MouseEvent) => {
+          if (!gridRef.current) return
+          const rect = gridRef.current.getBoundingClientRect()
+          currentY = e.clientY - rect.top + gridRef.current.scrollTop
+        }
+
+        const handleMouseUp = () => {
+          const proposedStartHour = snapHour(
+            currentY / HOUR_HEIGHT + CALENDAR_HOURS[0],
+          )
+          const endDecimal = timeToDecimal(session.end_time)
+          const minStartHour = endDecimal - (durationMinutes / 60)
+          // Ensure minimum duration of 15 minutes
+          const clampedStartHour = Math.min(
+            proposedStartHour,
+            endDecimal - MIN_DURATION_HOURS,
+          )
+          const newStartHour = Math.max(
+            CALENDAR_HOURS[0],
+            Math.min(minStartHour, clampedStartHour),
+          )
+          const newStartTime = decimalToTime(newStartHour)
+          onMoveSession(session.id, newStartTime)
+          cleanup()
+        }
+
+        const cleanup = () => {
+          document.removeEventListener('mousemove', handleMouseMove)
+          document.removeEventListener('mouseup', handleMouseUp)
+        }
+
+        document.addEventListener('mousemove', handleMouseMove)
+        document.addEventListener('mouseup', handleMouseUp)
+        return
+      }
+
+      // Bottom-edge resize (original logic)
+      let currentY = session.top + session.height
 
       const handleMouseMove = (e: MouseEvent) => {
         if (!gridRef.current) return
@@ -165,7 +205,7 @@ export default function DayView({
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
     },
-    [onResizeSession],
+    [onResizeSession, onMoveSession],
   )
 
   // ── Now indicator ─────────────────────────────
@@ -233,7 +273,6 @@ export default function DayView({
             <div
               key={cs.id}
               className="absolute left-14 right-4"
-              style={{ top: cs.top, height: cs.height }}
               draggable={draggingSessionId !== cs.id}
             >
               <SessionBlock

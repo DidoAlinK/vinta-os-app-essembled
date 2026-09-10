@@ -7,6 +7,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required
 from app.extensions import db
 from app.utils.decorators import tenant_required
+from app.utils.audit import log_activity
 from app.services import billing_service
 from app.schemas.billing import (
     CreatePlanRequestSchema, RecordPaymentRequestSchema,
@@ -104,6 +105,16 @@ def record_payment():
     )
     if not result:
         return jsonify({"error": "Billing record not found"}), 404
+
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="payment",
+        entity_id=data["billing_id"],
+        action="payment_received",
+        description=f"Payment of {data['amount']} received",
+        metadata={"amount": data["amount"], "payment_method": data.get("payment_method", "cash")},
+    )
 
     db.session.commit()
     return jsonify(result), 200

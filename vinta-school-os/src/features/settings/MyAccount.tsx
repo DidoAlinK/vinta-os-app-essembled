@@ -31,7 +31,7 @@ export function MyAccount() {
     setProfileError('')
     setIsSavingProfile(true)
     try {
-      await api.put('/settings/appearance', { name, phone: phone || undefined })
+      await api.put('/settings/profile', { name, phone: phone || undefined })
       setProfileSaved(true)
       setTimeout(() => setProfileSaved(false), 2000)
     } catch (err: unknown) {
@@ -75,7 +75,7 @@ export function MyAccount() {
         pin: currentPin,
       })
       // If that succeeded, update PIN via settings
-      await api.put('/settings/appearance', { pin: newPin })
+      await api.put('/settings/profile', { pin: newPin })
       setPinResult('success')
       setPinMessage('PIN changed successfully!')
       setCurrentPin('')

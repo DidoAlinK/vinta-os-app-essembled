@@ -14,6 +14,7 @@ import {
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
 import { formatCurrency } from '../../lib/formatters'
+import { toast } from '../../stores/uiStore'
 import TeacherTable from './TeacherTable'
 import TeacherDrawer from './TeacherDrawer'
 import AddTeacherModal from './AddTeacherModal'
@@ -66,6 +67,18 @@ export default function TeachersPage() {
     setIsDrawerOpen(false)
     setTimeout(() => setSelectedTeacher(null), 200)
   }, [])
+
+  const handleDeleteTeacher = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/teachers/${id}`)
+      setTeachers((prev) => prev.filter((t) => t.id !== id))
+      handleCloseDrawer()
+      toast.success('Teacher deleted successfully')
+    } catch (err) {
+      console.error('[TeachersPage] Failed to delete teacher', err)
+      toast.error('Failed to delete teacher', 'Please try again.')
+    }
+  }, [handleCloseDrawer])
 
   /* ── Filtered list ── */
   const filteredTeachers = search
@@ -184,6 +197,7 @@ export default function TeachersPage() {
         teacher={selectedTeacher}
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}
+        onDelete={handleDeleteTeacher}
       />
 
       {/* ── Add Teacher Modal ─────────────────────── */}

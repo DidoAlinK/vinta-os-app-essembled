@@ -8,6 +8,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required
 from app.extensions import db
 from app.utils.decorators import tenant_required
+from app.utils.audit import log_activity
 from app.services import scheduling_service
 from app.schemas.calendar import (
     CreateSessionRequestSchema, UpdateSessionRequestSchema,
@@ -87,6 +88,16 @@ def create_session():
             data=data,
             created_by=g.current_user.id,
         )
+
+        log_activity(
+            academy_id=g.current_academy_id,
+            user_id=g.current_user.id,
+            entity_type="session",
+            entity_id=session.id,
+            action="created",
+            description=f"Session created for {session.date.isoformat()} at {session.start_time.strftime('%H:%M')}",
+        )
+
         db.session.commit()
 
         return jsonify({
@@ -121,6 +132,15 @@ def update_session(session_id):
     if not session:
         return jsonify({"error": "Session not found or already started"}), 404
 
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="session",
+        entity_id=session.id,
+        action="updated",
+        description=f"Session on {session.date.isoformat()} updated",
+    )
+
     db.session.commit()
     return jsonify({
         "id": session.id,
@@ -139,6 +159,15 @@ def cancel_session(session_id):
     success = scheduling_service.cancel_session(session_id, g.current_academy_id)
     if not success:
         return jsonify({"error": "Session not found"}), 404
+
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="session",
+        entity_id=session_id,
+        action="deleted",
+        description="Session cancelled",
+    )
 
     db.session.commit()
     return jsonify({"message": "Session cancelled"}), 200

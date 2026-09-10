@@ -82,8 +82,8 @@ export default function AddStaffModal({ isOpen, onClose, onAdded }: AddStaffModa
       onAdded()
       onClose()
     } catch (err: unknown) {
-      const e = err as { message?: string }
-      setError(e.message || 'Failed to create staff profile')
+      const e = err as { message?: string; response?: { data?: { error?: string } } }
+      setError(e.response?.data?.error || e.message || 'Failed to create staff profile')
     } finally {
       setIsSubmitting(false)
     }

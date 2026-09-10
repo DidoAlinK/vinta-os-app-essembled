@@ -1,7 +1,7 @@
 """
 Auth schemas — Login, Signup, PIN verification, Profile management.
 """
-from marshmallow import Schema, fields
+from marshmallow import EXCLUDE, Schema, fields
 
 
 # ── Request Schemas ────────────────────────────────────────────────
@@ -40,7 +40,10 @@ class CreateProfileRequestSchema(Schema):
     pin = fields.String(required=True, metadata={"description": "4-6 digit PIN", "example": "5678"})
     role = fields.String(load_default="staff", metadata={"description": "Role: owner or staff", "example": "staff"})
     phone = fields.String(load_default=None, metadata={"description": "Phone number", "example": "+213555123456"})
-    owner_pin = fields.String(required=True, metadata={"description": "Owner's PIN for authorization", "example": "1234"})
+    owner_pin = fields.String(load_default=None, metadata={"description": "Owner's PIN for authorization", "example": "1234"})
+
+    class Meta:
+        unknown = EXCLUDE
 
 
 class ChangePinRequestSchema(Schema):

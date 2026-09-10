@@ -4,7 +4,7 @@
  * Supports drag-to-move and edge-resize (top/bottom handles).
  */
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { cn } from '../../lib/cn'
 import { formatTime } from '../../lib/formatters'
 import type { CalendarSession } from '../../types/calendar'
@@ -18,6 +18,12 @@ export interface SessionBlockProps {
   onClick: () => void
   onDragStart: () => void
   onResizeStart: (edge: 'top' | 'bottom') => void
+  /** Real-time override top position during resize drag */
+  overrideTop?: number
+  /** Real-time override height during resize drag */
+  overrideHeight?: number
+  /** Which edge is currently being resized (for visual indicator) */
+  resizingEdge?: 'top' | 'bottom' | null
 }
 
 // ============================================
@@ -42,10 +48,25 @@ export default function SessionBlock({
   onClick,
   onDragStart,
   onResizeStart,
+  overrideTop,
+  overrideHeight,
+  resizingEdge,
 }: SessionBlockProps) {
   const blockRef = useRef<HTMLDivElement>(null)
   const dragStarted = useRef(false)
   const mouseDownPos = useRef({ x: 0, y: 0 })
+  const activeListenersRef = useRef<{ move: (e: PointerEvent) => void; up: () => void } | null>(null)
+
+  // Cleanup leaked listeners on unmount
+  useEffect(() => {
+    return () => {
+      if (activeListenersRef.current) {
+        document.removeEventListener('pointermove', activeListenersRef.current.move)
+        document.removeEventListener('pointerup', activeListenersRef.current.up)
+        activeListenersRef.current = null
+      }
+    }
+  }, [])
 
   // ── Pointer handlers (drag) ───────────────────
 
@@ -53,6 +74,13 @@ export default function SessionBlock({
     (e: React.PointerEvent) => {
       // Ignore clicks on resize handles
       if ((e.target as HTMLElement).dataset.resize) return
+
+      // Clean up any previous leaked listeners
+      if (activeListenersRef.current) {
+        document.removeEventListener('pointermove', activeListenersRef.current.move)
+        document.removeEventListener('pointerup', activeListenersRef.current.up)
+        activeListenersRef.current = null
+      }
 
       mouseDownPos.current = { x: e.clientX, y: e.clientY }
       dragStarted.current = false
@@ -70,6 +98,7 @@ export default function SessionBlock({
       const handlePointerUp = () => {
         document.removeEventListener('pointermove', handlePointerMove)
         document.removeEventListener('pointerup', handlePointerUp)
+        activeListenersRef.current = null
 
         if (!dragStarted.current) {
           onClick()
@@ -77,6 +106,7 @@ export default function SessionBlock({
         dragStarted.current = false
       }
 
+      activeListenersRef.current = { move: handlePointerMove, up: handlePointerUp }
       document.addEventListener('pointermove', handlePointerMove)
       document.addEventListener('pointerup', handlePointerUp)
     },
@@ -112,8 +142,8 @@ export default function SessionBlock({
         'overflow-hidden',
       )}
       style={{
-        top: session.top,
-        height: session.height,
+        top: overrideTop ?? session.top,
+        height: overrideHeight ?? session.height,
         backgroundColor: bg,
         borderLeftColor: color,
       }}
@@ -185,6 +215,26 @@ export default function SessionBlock({
           style={{ backgroundColor: color }}
         />
       </div>
+
+      {/* ── Active resize indicator ──────────────── */}
+      {resizingEdge === 'top' && (
+        <div
+          className="absolute top-0 inset-x-0 h-[2px] z-20 pointer-events-none"
+          style={{
+            backgroundColor: color,
+            boxShadow: `0 0 6px ${hexToRgba(color, 0.5)}`,
+          }}
+        />
+      )}
+      {resizingEdge === 'bottom' && (
+        <div
+          className="absolute bottom-0 inset-x-0 h-[2px] z-20 pointer-events-none"
+          style={{
+            backgroundColor: color,
+            boxShadow: `0 0 6px ${hexToRgba(color, 0.5)}`,
+          }}
+        />
+      )}
     </div>
   )
 }

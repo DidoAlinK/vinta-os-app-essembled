@@ -249,6 +249,8 @@ export const TOKEN_KEY = 'vinta_access_token'
 export const REFRESH_TOKEN_KEY = 'vinta_refresh_token'
 export const ACADEMY_ID_KEY = 'vinta_academy_id'
 export const THEME_KEY = 'vinta_theme'
+export const FONT_SIZE_KEY = 'vinta_font_size'
+export const LANGUAGE_KEY = 'vinta_language'
 
 // ============================================
 // Responsive Breakpoints

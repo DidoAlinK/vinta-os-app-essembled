@@ -32,7 +32,7 @@ export function BillingPage() {
       try {
         const [statsRes, revenueRes] = await Promise.all([
           api.get('/billing/stats'),
-          api.get('/billing/revenue', { params: { property: revenueProperty } }),
+          api.get('/billing/revenue-chart', { params: { property: revenueProperty } }),
         ])
         if (!cancelled) {
           setStats(statsRes.data)

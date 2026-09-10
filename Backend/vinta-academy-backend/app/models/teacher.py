@@ -54,10 +54,12 @@ class Teacher(db.Model):
     classes = relationship("Class", back_populates="teacher", lazy="dynamic")
     sessions = relationship("Session", back_populates="teacher", lazy="dynamic")
     payrolls = relationship(
-        "TeacherPayroll", back_populates="teacher", lazy="dynamic"
+        "TeacherPayroll", back_populates="teacher", lazy="dynamic",
+        cascade="all, delete-orphan"
     )
     hours_logs = relationship(
-        "TeacherHoursLog", back_populates="teacher", lazy="dynamic"
+        "TeacherHoursLog", back_populates="teacher", lazy="dynamic",
+        cascade="all, delete-orphan"
     )
 
     @property

@@ -7,6 +7,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required
 from app.extensions import db
 from app.utils.decorators import tenant_required
+from app.utils.audit import log_activity
 from app.services import student_service
 from app.schemas.students import (
     CreateStudentRequestSchema, UpdateStudentRequestSchema, EnrollStudentRequestSchema,
@@ -78,6 +79,16 @@ def create_student():
             data=data,
             created_by=g.current_user.id,
         )
+
+        log_activity(
+            academy_id=g.current_academy_id,
+            user_id=g.current_user.id,
+            entity_type="student",
+            entity_id=student.id,
+            action="created",
+            description=f"Student {student.full_name} created",
+        )
+
         db.session.commit()
         return jsonify({
             "id": student.id,

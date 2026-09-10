@@ -80,7 +80,7 @@ def create_student(academy_id: str, data: dict, created_by: str) -> Student:
         id=str(uuid.uuid4()),
         student_id=student.id,
         name="Parent",
-        relationship="Parent",
+        relationship_type="Parent",
         phone=data.get("parent_phone", ""),
         is_emergency=True,
     )

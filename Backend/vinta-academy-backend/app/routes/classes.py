@@ -8,6 +8,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required
 from app.extensions import db
 from app.utils.decorators import tenant_required
+from app.utils.audit import log_activity
 from app.models.class_room import Classroom, Class, Subject
 from app.models.scheduling import Schedule
 from app.services import scheduling_service
@@ -169,6 +170,16 @@ def create_class():
         notes=data.get("notes"),
     )
     db.session.add(cls)
+
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="class",
+        entity_id=cls.id,
+        action="created",
+        description=f"Class {cls.name} created",
+    )
+
     db.session.commit()
 
     return jsonify({
@@ -197,6 +208,16 @@ def update_class(class_id):
         if field in data:
             setattr(cls, field, data[field])
 
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="class",
+        entity_id=cls.id,
+        action="updated",
+        description=f"Class {cls.name} updated",
+        metadata={"fields": [f for f in ("name", "subject", "color", "teacher_id", "capacity", "notes") if f in data]},
+    )
+
     db.session.commit()
     return jsonify({"id": cls.id, "name": cls.name}), 200
 
@@ -217,6 +238,15 @@ def delete_class(class_id):
     enrollments = Enrollment.query.filter_by(class_id=class_id, status="active").all()
     for e in enrollments:
         e.status = "withdrawn"
+
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="class",
+        entity_id=cls.id,
+        action="deleted",
+        description=f"Class {cls.name} deleted",
+    )
 
     db.session.delete(cls)
     db.session.commit()

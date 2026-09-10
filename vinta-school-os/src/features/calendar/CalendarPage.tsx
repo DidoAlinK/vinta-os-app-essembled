@@ -4,7 +4,7 @@
  * Composes SubjectPalette, WeekView, and DayView with view-mode toggling.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import api from '../../lib/api'
 import {
   ChevronLeft,
@@ -12,11 +12,15 @@ import {
   Calendar,
   CalendarDays,
   CalendarRange,
+  X,
+  Pencil,
+  Check,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import {
   formatDateISO,
   formatDateShort,
+  formatTime,
   getWeekDates,
 } from '../../lib/formatters'
 import SubjectPalette from './SubjectPalette'
@@ -33,6 +37,7 @@ export interface CalendarPageProps {
   sessions: Session[]
   subjects: Subject[]
   isLoading?: boolean
+  selectedSession: Session | null
 
   // Subject management
   onAddSubject: (name: string, color: string) => void
@@ -42,7 +47,12 @@ export interface CalendarPageProps {
   onMoveSession: (id: string, date: string, time: string) => void
   onResizeSession: (id: string, endTime: string) => void
   onSelectSession: (session: Session) => void
+  onClosePanel: () => void
   onDropSubject: (subject: Subject, date: string, time: string) => void
+
+  // Edit panel
+  onSaveEdit: (id: string, data: { class_name: string; subject: string; start_time: string; end_time: string }) => void
+  onDiscardTemp: (id: string) => void
 }
 
 // ============================================
@@ -66,15 +76,24 @@ export function CalendarPageInner({
   sessions,
   subjects,
   isLoading = false,
+  selectedSession,
   onAddSubject,
   onDeleteSubject,
   onMoveSession,
   onResizeSession,
   onSelectSession,
+  onClosePanel,
   onDropSubject,
+  onSaveEdit,
+  onDiscardTemp,
 }: CalendarPageProps) {
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week')
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editStartTime, setEditStartTime] = useState('')
+  const [editEndTime, setEditEndTime] = useState('')
+  const editNameRef = useRef<HTMLInputElement>(null)
 
   // ── Navigation ────────────────────────────────
 
@@ -129,6 +148,61 @@ export function CalendarPageInner({
     },
     [onMoveSession, selectedDate],
   )
+
+  // ── Session selection adapter ────────────────
+
+  const handleSessionSelect = useCallback(
+    (session: Session) => {
+      setIsEditing(false)
+      onSelectSession(session)
+    },
+    [onSelectSession],
+  )
+
+  // ── Edit panel helpers ──────────────────────
+
+  const isTempSession = useCallback(
+    (s: Session) => s.id.startsWith('sess-') || s.id.startsWith('temp-'),
+    [],
+  )
+
+  const startEditing = useCallback((session: Session) => {
+    setEditName(session.class_name)
+    setEditStartTime(session.start_time)
+    setEditEndTime(session.end_time)
+    setIsEditing(true)
+    // Focus name input after render
+    setTimeout(() => editNameRef.current?.focus(), 50)
+  }, [])
+
+  const handleSaveEdit = useCallback(() => {
+    if (!selectedSession) return
+    const trimmed = editName.trim()
+    if (!trimmed) return
+    onSaveEdit(selectedSession.id, {
+      class_name: trimmed,
+      subject: trimmed,
+      start_time: editStartTime,
+      end_time: editEndTime,
+    })
+    setIsEditing(false)
+  }, [selectedSession, editName, editStartTime, editEndTime, onSaveEdit])
+
+  const handleCancelEdit = useCallback(() => {
+    if (!selectedSession) return
+    if (isTempSession(selectedSession)) {
+      onDiscardTemp(selectedSession.id)
+    }
+    setIsEditing(false)
+  }, [selectedSession, isTempSession, onDiscardTemp])
+
+  const handleClosePanel = useCallback(() => {
+    if (selectedSession && isTempSession(selectedSession)) {
+      onDiscardTemp(selectedSession.id)
+    }
+    onClosePanel()
+    setIsEditing(false)
+  }, [selectedSession, isTempSession, onDiscardTemp, onClosePanel])
 
   // ── Render ────────────────────────────────────
 
@@ -231,9 +305,10 @@ export function CalendarPageInner({
           ) : viewMode === 'week' ? (
             <WeekView
               sessions={sessions}
+              selectedDate={selectedDate}
               onMoveSession={onMoveSession}
               onResizeSession={onResizeSession}
-              onSelectSession={onSelectSession}
+              onSelectSession={handleSessionSelect}
               onDropSubject={onDropSubject}
             />
           ) : (
@@ -242,10 +317,147 @@ export function CalendarPageInner({
               date={selectedDate}
               onMoveSession={handleDayMove}
               onResizeSession={onResizeSession}
-              onSelectSession={onSelectSession}
+              onSelectSession={handleSessionSelect}
             />
           )}
         </div>
+
+        {/* ── Event edit panel (appears after drop or click) ── */}
+        {selectedSession && (
+          <div
+            className={cn(
+              'shrink-0 border-t border-[var(--divider)]',
+              'bg-[var(--glass)] backdrop-blur-xl',
+              'px-5 py-3 animate-fade-in',
+            )}
+          >
+            {isEditing ? (
+              /* ── Edit mode ─────────────────────────── */
+              <div className="space-y-3">
+                {/* Row 1: Name + color + subject */}
+                <div className="flex items-center gap-3">
+                  <span
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: selectedSession.color }}
+                  />
+                  <input
+                    ref={editNameRef}
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveEdit()
+                      if (e.key === 'Escape') handleCancelEdit()
+                    }}
+                    className={cn(
+                      'flex-1 px-2 py-1 rounded-lg text-sm font-semibold',
+                      'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                      'text-[var(--text)] outline-none',
+                      'focus:ring-2 focus:ring-[var(--gold)]/30',
+                    )}
+                    style={{ fontFamily: 'var(--font-heading)' }}
+                  />
+                  <span className="text-xs text-[var(--muted)] shrink-0">
+                    {selectedSession.subject}
+                  </span>
+                </div>
+
+                {/* Row 2: Time inputs */}
+                <div className="flex items-center gap-3 ml-6">
+                  <label className="text-xs text-[var(--muted)]">Start</label>
+                  <input
+                    type="time"
+                    value={editStartTime}
+                    onChange={(e) => setEditStartTime(e.target.value)}
+                    className={cn(
+                      'px-2 py-1 rounded-lg text-xs',
+                      'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                      'text-[var(--text)] outline-none',
+                      'focus:ring-2 focus:ring-[var(--gold)]/30',
+                    )}
+                  />
+                  <label className="text-xs text-[var(--muted)]">End</label>
+                  <input
+                    type="time"
+                    value={editEndTime}
+                    onChange={(e) => setEditEndTime(e.target.value)}
+                    className={cn(
+                      'px-2 py-1 rounded-lg text-xs',
+                      'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                      'text-[var(--text)] outline-none',
+                      'focus:ring-2 focus:ring-[var(--gold)]/30',
+                    )}
+                  />
+                </div>
+
+                {/* Row 3: Actions */}
+                <div className="flex items-center justify-end gap-2 ml-6">
+                  <button
+                    onClick={handleCancelEdit}
+                    className={cn(
+                      'px-3 py-1 rounded-lg text-xs font-medium',
+                      'text-[var(--muted)] hover:bg-[var(--glass)]',
+                      'transition-colors duration-150',
+                    )}
+                  >
+                    {isTempSession(selectedSession) ? 'Discard' : 'Cancel'}
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={!editName.trim()}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium',
+                      'bg-[var(--gold)] text-white',
+                      'hover:opacity-90 active:scale-[0.98]',
+                      'disabled:opacity-40 disabled:cursor-not-allowed',
+                      'transition-all duration-150',
+                    )}
+                  >
+                    <Check size={12} />
+                    Save
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* ── Read-only mode ────────────────────── */
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: selectedSession.color }}
+                  />
+                  <div>
+                    <p
+                      className="text-sm font-semibold text-[var(--text)]"
+                      style={{ fontFamily: 'var(--font-heading)' }}
+                    >
+                      {selectedSession.class_name}
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      {selectedSession.subject} · {selectedSession.teacher_name || 'No teacher'} ·{' '}
+                      {formatTime(selectedSession.start_time)} – {formatTime(selectedSession.end_time)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => startEditing(selectedSession)}
+                    className="p-1.5 rounded-lg hover:bg-[var(--glass)] transition-colors"
+                    title="Edit session"
+                  >
+                    <Pencil size={14} className="text-[var(--muted)]" />
+                  </button>
+                  <button
+                    onClick={handleClosePanel}
+                    className="p-1.5 rounded-lg hover:bg-[var(--glass)] transition-colors"
+                  >
+                    <X size={14} className="text-[var(--muted)]" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -259,6 +471,7 @@ export default function CalendarPageContainer() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -300,7 +513,9 @@ export default function CalendarPageContainer() {
     setSessions(prev => prev.map(s => s.id === id ? { ...s, end_time: endTime } : s))
   }, [])
 
-  const handleSelectSession = useCallback((_session: Session) => {}, [])
+  const handleSelectSession = useCallback((session: Session) => {
+    setSelectedSession(session)
+  }, [])
 
   const handleDropSubject = useCallback((subject: Subject, date: string, time: string) => {
     const temp: Session = {
@@ -311,6 +526,26 @@ export default function CalendarPageContainer() {
       start_hour: Number(time.split(':')[0]), end_hour: Number(time.split(':')[0]) + 2, duration: 2,
     }
     setSessions(prev => [...prev, temp])
+    handleSelectSession(temp)
+  }, [handleSelectSession])
+
+  const handleSaveEdit = useCallback((id: string, data: { class_name: string; subject: string; start_time: string; end_time: string }) => {
+    setSessions(prev => prev.map(s => s.id === id ? {
+      ...s,
+      class_name: data.class_name,
+      subject: data.subject,
+      start_time: data.start_time,
+      end_time: data.end_time,
+      start_hour: Number(data.start_time.split(':')[0]),
+      end_hour: Number(data.end_time.split(':')[0]),
+      duration: (Number(data.end_time.split(':')[0]) + Number(data.end_time.split(':')[1] || 0) / 60) - (Number(data.start_time.split(':')[0]) + Number(data.start_time.split(':')[1] || 0) / 60),
+    } : s))
+    setSelectedSession(prev => prev && prev.id === id ? { ...prev, ...data } : prev)
+  }, [])
+
+  const handleDiscardTemp = useCallback((id: string) => {
+    setSessions(prev => prev.filter(s => s.id !== id))
+    setSelectedSession(null)
   }, [])
 
   return (
@@ -318,12 +553,16 @@ export default function CalendarPageContainer() {
       sessions={sessions}
       subjects={subjects}
       isLoading={isLoading}
+      selectedSession={selectedSession}
       onAddSubject={handleAddSubject}
       onDeleteSubject={handleDeleteSubject}
       onMoveSession={handleMoveSession}
       onResizeSession={handleResizeSession}
       onSelectSession={handleSelectSession}
+      onClosePanel={() => setSelectedSession(null)}
       onDropSubject={handleDropSubject}
+      onSaveEdit={handleSaveEdit}
+      onDiscardTemp={handleDiscardTemp}
     />
   )
 }

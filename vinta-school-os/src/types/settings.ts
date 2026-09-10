@@ -18,7 +18,7 @@ export interface AcademySettings {
   end_class_popup_enabled: boolean
   default_theme: 'light' | 'dark'
   default_font_size: 'normal' | 'large'
-  default_language: 'fr' | 'ar'
+  default_language: 'fr' | 'ar' | 'en'
   created_at: string
   updated_at: string
 }
@@ -98,7 +98,7 @@ export interface UpdateSettingsRequest {
   end_class_popup_enabled?: boolean
   default_theme?: 'light' | 'dark'
   default_font_size?: 'normal' | 'large'
-  default_language?: 'fr' | 'ar'
+  default_language?: 'fr' | 'ar' | 'en'
 }
 
 export interface AddStaffRequest {

@@ -1,11 +1,11 @@
 /**
  * Vinta School OS — Add Student Modal
  * Modal form for creating new student records with
- * class enrollment and payment plan selection.
+ * class enrollment and searchable class selection.
  */
 
-import { useCallback, useEffect, useState } from 'react'
-import { X, UserPlus, Check } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { X, UserPlus, Search, ChevronDown } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
 
@@ -25,12 +25,6 @@ interface ClassOption {
   subject: string
 }
 
-interface PaymentPlan {
-  id: string
-  name: string
-  price: number
-}
-
 // ============================================
 // Component
 // ============================================
@@ -42,38 +36,32 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
   const [phone, setPhone] = useState('')
   const [parentPhone, setParentPhone] = useState('')
   const [notes, setNotes] = useState('')
-  const [selectedClasses, setSelectedClasses] = useState<string[]>([])
-  const [paymentPlanId, setPaymentPlanId] = useState('')
+  const [selectedClassId, setSelectedClassId] = useState('')
+  const [classSearch, setClassSearch] = useState('')
+  const [classDropdownOpen, setClassDropdownOpen] = useState(false)
 
   /* ── Options ── */
   const [classOptions, setClassOptions] = useState<ClassOption[]>([])
-  const [planOptions, setPlanOptions] = useState<PaymentPlan[]>([])
 
   /* ── UI state ── */
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  /* ── Fetch class + plan options when opened ── */
+  /* ── Refs ── */
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  /* ── Fetch class options when opened ── */
   useEffect(() => {
     if (!isOpen) return
     let cancelled = false
 
     async function loadOptions() {
       try {
-        const [classesRes, plansRes] = await Promise.allSettled([
-          api.get('/classes'),
-          api.get('/billing/plans'),
-        ])
+        const classesRes = await api.get('/classes')
         if (cancelled) return
 
-        if (classesRes.status === 'fulfilled') {
-          const data = classesRes.value.data
-          setClassOptions(data.classes ?? data ?? [])
-        }
-        if (plansRes.status === 'fulfilled') {
-          const data = plansRes.value.data
-          setPlanOptions(data.plans ?? data ?? [])
-        }
+        const data = classesRes.value.data
+        setClassOptions(data.classes ?? data ?? [])
       } catch {
         // Options unavailable — form still works without them
       }
@@ -91,8 +79,9 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
       setPhone('')
       setParentPhone('')
       setNotes('')
-      setSelectedClasses([])
-      setPaymentPlanId('')
+      setSelectedClassId('')
+      setClassSearch('')
+      setClassDropdownOpen(false)
       setError(null)
     }
   }, [isOpen])
@@ -107,13 +96,35 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
     return () => document.removeEventListener('keydown', handleKey)
   }, [isOpen, onClose])
 
-  /* ── Toggle class selection ── */
-  const toggleClass = useCallback((classId: string) => {
-    setSelectedClasses(prev =>
-      prev.includes(classId)
-        ? prev.filter(id => id !== classId)
-        : [...prev, classId],
+  /* ── Click outside to close dropdown ── */
+  useEffect(() => {
+    if (!classDropdownOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setClassDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [classDropdownOpen])
+
+  /* ── Filtered class options ── */
+  const filteredClasses = classOptions.filter((cls) => {
+    const q = classSearch.toLowerCase()
+    return (
+      cls.name.toLowerCase().includes(q) ||
+      cls.subject.toLowerCase().includes(q)
     )
+  })
+
+  /* ── Selected class object ── */
+  const selectedClass = classOptions.find((c) => c.id === selectedClassId) ?? null
+
+  /* ── Color dot for class ── */
+  const classColor = useCallback((id: string) => {
+    let hash = 0
+    for (const ch of id) hash = ch.charCodeAt(0) + ((hash << 5) - hash)
+    return `hsl(${Math.abs(hash) % 360}, 55%, 50%)`
   }, [])
 
   /* ── Submit ── */
@@ -126,23 +137,26 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
     setError(null)
 
     try {
-      await api.post('/students', {
+      const response = await api.post('/students', {
         first_name: trimmedFirst,
         last_name: trimmedLast,
         phone: phone.trim() || undefined,
         parent_phone: parentPhone.trim() || undefined,
         notes: notes.trim() || undefined,
-        class_ids: selectedClasses.length > 0 ? selectedClasses : undefined,
-        payment_plan_id: paymentPlanId || undefined,
+        class_id: selectedClassId || undefined,
       })
+      if (response.data?.error) {
+        setError(response.data.error)
+        return
+      }
       onCreated?.()
       onClose()
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Failed to create student. Please try again.')
+      setError(err?.response?.data?.error ?? 'Failed to create student. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
-  }, [firstName, lastName, phone, parentPhone, notes, selectedClasses, paymentPlanId, onCreated, onClose])
+  }, [firstName, lastName, phone, parentPhone, notes, selectedClassId, onCreated, onClose])
 
   /* ── Keyboard submit ── */
   const handleKeyDown = useCallback(
@@ -279,96 +293,150 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
             </div>
           </div>
 
-          {/* Class Enrollment */}
+          {/* Class Enrollment — Searchable Dropdown */}
           <div>
             <h4 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">
               Class Enrollment
             </h4>
-            {classOptions.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2">
-                {classOptions.map((cls) => {
-                  const isSelected = selectedClasses.includes(cls.id)
-                  return (
+            <div className="relative" ref={dropdownRef}>
+              {/* Trigger / Display */}
+              {selectedClass ? (
+                <div
+                  className={cn(
+                    'flex items-center justify-between gap-2 px-3 py-2 rounded-lg',
+                    'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                    'cursor-pointer group',
+                  )}
+                  onClick={() => setClassDropdownOpen((p) => !p)}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: classColor(selectedClass.id) }}
+                    />
+                    <span className="text-sm font-medium text-[var(--text)] truncate">
+                      {selectedClass.name}
+                    </span>
+                    <span className="text-[11px] text-[var(--muted)] truncate">
+                      {selectedClass.subject}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
                     <button
-                      key={cls.id}
                       type="button"
-                      onClick={() => toggleClass(cls.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedClassId('')
+                        setClassSearch('')
+                      }}
                       className={cn(
-                        'flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm',
-                        'border transition-all duration-150',
-                        isSelected
-                          ? 'bg-[var(--gold-soft)] border-[var(--gold)]/40 text-[var(--text)]'
-                          : 'bg-[var(--input-bg)] border-[var(--glass-border)] text-[var(--muted)] hover:border-[var(--muted)]/30',
+                        'p-0.5 rounded text-[var(--muted)]',
+                        'hover:text-[var(--red)] hover:bg-[var(--red-soft)]',
+                        'transition-colors duration-150',
                       )}
                     >
-                      <div
-                        className={cn(
-                          'w-4 h-4 rounded shrink-0 flex items-center justify-center border',
-                          isSelected
-                            ? 'bg-[var(--gold)] border-[var(--gold)] text-white'
-                            : 'border-[var(--glass-border)] bg-transparent',
-                        )}
-                      >
-                        {isSelected && <Check size={10} strokeWidth={3} />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{cls.name}</p>
-                        <p className="text-[10px] opacity-60 truncate">{cls.subject}</p>
-                      </div>
+                      <X size={14} />
                     </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-[var(--muted)] py-2">No classes available</p>
-            )}
-          </div>
-
-          {/* Payment Plan */}
-          <div>
-            <h4 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">
-              Payment Plan
-            </h4>
-            {planOptions.length > 0 ? (
-              <div className="space-y-2">
-                {planOptions.map((plan) => {
-                  const isSelected = paymentPlanId === plan.id
-                  return (
-                    <button
-                      key={plan.id}
-                      type="button"
-                      onClick={() => setPaymentPlanId(isSelected ? '' : plan.id)}
+                    <ChevronDown
+                      size={14}
                       className={cn(
-                        'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm',
-                        'border transition-all duration-150 text-left',
-                        isSelected
-                          ? 'bg-[var(--emerald-soft)] border-[var(--emerald)]/40 text-[var(--text)]'
-                          : 'bg-[var(--input-bg)] border-[var(--glass-border)] text-[var(--muted)] hover:border-[var(--muted)]/30',
+                        'text-[var(--muted)] transition-transform duration-150',
+                        classDropdownOpen && 'rotate-180',
                       )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* Empty state — search input */
+                <div
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-lg',
+                    'bg-[var(--input-bg)] border',
+                    classDropdownOpen
+                      ? 'border-[var(--gold)]/40 ring-2 ring-[var(--gold)]/20'
+                      : 'border-[var(--glass-border)]',
+                    'transition-all duration-150',
+                  )}
+                  onClick={() => setClassDropdownOpen(true)}
+                >
+                  <Search size={14} className="text-[var(--muted)] shrink-0" />
+                  <input
+                    type="text"
+                    value={classSearch}
+                    onChange={(e) => {
+                      setClassSearch(e.target.value)
+                      setClassDropdownOpen(true)
+                    }}
+                    onFocus={() => setClassDropdownOpen(true)}
+                    placeholder="Search classes..."
+                    className={cn(
+                      'flex-1 bg-transparent outline-none text-sm text-[var(--text)]',
+                      'placeholder:text-[var(--muted)]/50',
+                    )}
+                  />
+                  <ChevronDown
+                    size={14}
+                    className={cn(
+                      'text-[var(--muted)] transition-transform duration-150',
+                      classDropdownOpen && 'rotate-180',
+                    )}
+                  />
+                </div>
+              )}
+
+              {/* Dropdown */}
+              {classDropdownOpen && (
+                <div
+                  className={cn(
+                    'absolute z-50 mt-1.5 w-full max-h-48 overflow-y-auto',
+                    'rounded-lg border border-[var(--glass-border)]',
+                    'bg-[var(--glass)] backdrop-blur-xl shadow-xl',
+                  )}
+                >
+                  {filteredClasses.length > 0 ? (
+                    filteredClasses.map((cls) => {
+                      const isSelected = cls.id === selectedClassId
+                      return (
+                        <button
+                          key={cls.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedClassId(cls.id)
+                            setClassSearch('')
+                            setClassDropdownOpen(false)
+                          }}
                           className={cn(
-                            'w-4 h-4 rounded-full shrink-0 flex items-center justify-center border',
+                            'w-full flex items-center gap-2.5 px-3 py-2.5 text-left',
+                            'text-sm transition-colors duration-100',
                             isSelected
-                              ? 'bg-[var(--emerald)] border-[var(--emerald)] text-white'
-                              : 'border-[var(--glass-border)] bg-transparent',
+                              ? 'bg-[var(--gold-soft)] text-[var(--text)]'
+                              : 'text-[var(--text)] hover:bg-[var(--glass)]',
                           )}
                         >
-                          {isSelected && <Check size={10} strokeWidth={3} />}
-                        </div>
-                        <span className="font-medium">{plan.name}</span>
-                      </div>
-                      <span className="text-xs opacity-60">
-                        {new Intl.NumberFormat('fr-DZ').format(plan.price)} DA
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-[var(--muted)] py-2">No payment plans configured</p>
-            )}
+                          <div
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: classColor(cls.id) }}
+                          />
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{cls.name}</p>
+                            <p className="text-[11px] text-[var(--muted)] truncate">
+                              {cls.subject}
+                            </p>
+                          </div>
+                          {isSelected && (
+                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--gold)] shrink-0" />
+                          )}
+                        </button>
+                      )
+                    })
+                  ) : (
+                    <p className="px-3 py-3 text-xs text-[var(--muted)] text-center">
+                      No classes found
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

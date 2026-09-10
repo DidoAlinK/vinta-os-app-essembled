@@ -1,13 +1,11 @@
 import { useAuthStore } from '../../stores/authStore'
 import { useUIStore } from '../../stores/uiStore'
-import { useThemeStore } from '../../stores/themeStore'
 import { getInitials } from '../../lib/formatters'
-import { Search, Bell, Menu, Sun, Moon } from 'lucide-react'
+import { Search, Bell, Menu } from 'lucide-react'
 
 export function Topbar() {
   const user = useAuthStore(s => s.user)
   const { searchQuery, setSearchQuery, setMobileSidebarOpen } = useUIStore()
-  const { theme, toggleTheme } = useThemeStore()
 
   return (
     <header
@@ -41,15 +39,6 @@ export function Topbar() {
 
       {/* Spacer */}
       <div className="flex-1" />
-
-      {/* Theme toggle */}
-      <button
-        onClick={toggleTheme}
-        className="p-2 rounded-full transition-colors"
-        style={{ color: 'var(--muted)' }}
-      >
-        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-      </button>
 
       {/* Notifications */}
       <button className="relative p-2 rounded-full" style={{ color: 'var(--muted)' }}>

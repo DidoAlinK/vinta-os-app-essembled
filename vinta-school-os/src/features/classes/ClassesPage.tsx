@@ -11,7 +11,6 @@ import { SUBJECT_COLORS } from '../../lib/constants'
 import ClassGrid from './ClassGrid'
 import ClassDetail from './ClassDetail'
 import type { Class } from '../../types/class'
-import type { Teacher } from '../../types/teacher'
 
 /* ─── Stat chip ─── */
 function StatChip({ label, value, color }: { label: string; value: number; color: string }) {
@@ -43,32 +42,16 @@ function AddClassModal({
   isOpen, onClose, onAdd,
 }: {
   isOpen: boolean; onClose: () => void
-  onAdd: (data: { name: string; color: string; capacity: number; teacher_id?: string; notes?: string }) => void
+  onAdd: (data: { name: string; color: string; capacity: number; notes?: string }) => void
 }) {
   const [name, setName] = useState('')
   const [color, setColor] = useState(COLOR_PRESETS[0].color)
   const [capacity, setCapacity] = useState(20)
-  const [teacherId, setTeacherId] = useState('')
   const [notes, setNotes] = useState('')
-  const [teachers, setTeachers] = useState<Teacher[]>([])
-
-  /* Fetch teachers for dropdown */
-  useEffect(() => {
-    if (!isOpen) return
-    let cancelled = false
-    async function load() {
-      try {
-        const { data } = await api.get('/teachers')
-        if (!cancelled) setTeachers(data.teachers ?? data ?? [])
-      } catch { /* ignore */ }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [isOpen])
 
   const resetAndClose = useCallback(() => {
     setName(''); setColor(COLOR_PRESETS[0].color)
-    setCapacity(20); setTeacherId(''); setNotes('')
+    setCapacity(20); setNotes('')
     onClose()
   }, [onClose])
 
@@ -78,11 +61,10 @@ function AddClassModal({
       name: name.trim(),
       color,
       capacity,
-      teacher_id: teacherId || undefined,
       notes: notes.trim() || undefined,
     })
     resetAndClose()
-  }, [name, color, capacity, teacherId, notes, onAdd, resetAndClose])
+  }, [name, color, capacity, notes, onAdd, resetAndClose])
 
   if (!isOpen) return null
 
@@ -124,15 +106,6 @@ function AddClassModal({
           <div>
             <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted)' }}>Class Name <span style={{ color: 'var(--red)' }}>*</span></label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Math — CM2" className={inputCls} />
-          </div>
-
-          {/* Teacher */}
-          <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--muted)' }}>Teacher</label>
-            <select value={teacherId} onChange={e => setTeacherId(e.target.value)} className={cn(inputCls, 'appearance-none cursor-pointer')}>
-              <option value="">Unassigned</option>
-              {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-            </select>
           </div>
 
           {/* Capacity */}
@@ -249,7 +222,7 @@ export function ClassesPage() {
     setSelectedClass(prev => prev?.id === cls.id ? null : cls)
   }, [])
 
-  const handleAddClass = useCallback(async (data: { name: string; color: string; capacity: number; teacher_id?: string; notes?: string }) => {
+  const handleAddClass = useCallback(async (data: { name: string; color: string; capacity: number; notes?: string }) => {
     try {
       const { data: newClass } = await api.post('/classes', data)
       setClasses(prev => [...prev, newClass])
@@ -264,6 +237,11 @@ export function ClassesPage() {
       }
       setClasses(prev => [...prev, temp])
     }
+  }, [])
+
+  const handleDeleteClass = useCallback((id: string) => {
+    setClasses(prev => prev.filter(c => c.id !== id))
+    setSelectedClass(null)
   }, [])
 
   return (
@@ -309,7 +287,7 @@ export function ClassesPage() {
       </div>
 
       {/* Class Detail sidebar */}
-      <ClassDetail cls={selectedClass} isOpen={!!selectedClass} onClose={() => setSelectedClass(null)} />
+      <ClassDetail cls={selectedClass} isOpen={!!selectedClass} onClose={() => setSelectedClass(null)} onDelete={handleDeleteClass} />
 
       {/* Add modal */}
       <AddClassModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={handleAddClass} />

@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Check, Hash } from 'lucide-react'
 import { cn } from '../../lib/cn'
 
 // ============================================
@@ -20,6 +20,14 @@ export const COLOR_PRESETS = [
   '#ea580c', // Orange
   '#ec4899', // Pink
   '#14b8a6', // Teal
+  '#6d28d9', // Deep Purple
+  '#4f46e5', // Indigo
+  '#06b6d4', // Cyan
+  '#65a30d', // Lime
+  '#d97706', // Amber
+  '#e11d48', // Rose
+  '#64748b', // Slate
+  '#1e3a5f', // Navy
 ] as const
 
 // ============================================
@@ -123,12 +131,12 @@ export default function AddSubjectModal({
           />
         </div>
 
-        {/* Color picker — presets */}
+        {/* Color picker — all swatches */}
         <div className="mb-3">
           <label className="block text-xs font-medium text-[var(--muted)] mb-2">
             Color
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {COLOR_PRESETS.map((preset) => (
               <button
                 key={preset}
@@ -137,40 +145,58 @@ export default function AddSubjectModal({
                   setCustomColor('')
                 }}
                 className={cn(
-                  'w-7 h-7 rounded-full border-2 transition-all duration-150',
-                  (customColor ? customColor === preset : color === preset)
-                    ? 'border-[var(--text)] scale-110'
+                  'w-8 h-8 rounded-full border-2 transition-all duration-150',
+                  'flex items-center justify-center',
+                  !customColor && color === preset
+                    ? 'border-[var(--text)] scale-110 shadow-sm'
                     : 'border-transparent hover:scale-110',
                 )}
                 style={{ backgroundColor: preset }}
                 aria-label={`Select color ${preset}`}
-              />
+              >
+                {!customColor && color === preset && (
+                  <Check size={12} className="text-white drop-shadow-sm" />
+                )}
+              </button>
             ))}
+          </div>
+        </div>
 
-            {/* Custom color */}
-            <label
-              className={cn(
-                'w-7 h-7 rounded-full border-2 cursor-pointer',
-                'flex items-center justify-center',
-                'border-dashed border-[var(--muted)]/40 hover:border-[var(--muted)]',
-                'transition-colors duration-150',
-              )}
-              style={
-                customColor
-                  ? { backgroundColor: customColor, borderColor: customColor }
-                  : undefined
-              }
-            >
+        {/* Custom hex input */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-[var(--muted)] mb-2">
+            Custom
+          </label>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Hash size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
               <input
-                type="color"
-                value={customColor || color}
+                type="text"
+                value={customColor}
                 onChange={(e) => setCustomColor(e.target.value)}
-                className="sr-only"
+                placeholder="#6d28d9"
+                maxLength={7}
+                className={cn(
+                  'w-full pl-8 pr-3 py-2 rounded-lg text-sm font-mono text-[var(--text)]',
+                  'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                  'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                  'placeholder:text-[var(--muted)]/50',
+                  'transition-shadow duration-150',
+                )}
               />
-              <span className="text-[8px] text-white font-bold">
-                {customColor ? '' : '+'}
-              </span>
-            </label>
+            </div>
+            {customColor && (
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    'w-8 h-8 rounded-lg border-2 shrink-0',
+                    'border-[var(--text)] shadow-sm',
+                  )}
+                  style={{ backgroundColor: customColor }}
+                />
+                <Check size={14} className="text-[var(--gold)] shrink-0" />
+              </div>
+            )}
           </div>
         </div>
 

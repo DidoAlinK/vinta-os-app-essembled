@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import api from '../../lib/api'
 import type { Session } from '../../types/class'
 import type { RosterStudent } from './SessionDetail'
+import type { ActivityLogEntry } from './ActivityLog'
 import AgendaBoard from './AgendaBoard'
 import SessionDetail from './SessionDetail'
 import ActivityLog from './ActivityLog'
@@ -55,6 +56,7 @@ export function DashboardPage() {
   const [studentCount, setStudentCount] = useState(0)
   const [todaySessions, setTodaySessions] = useState(0)
   const [activeNotes, setActiveNotes] = useState(0)
+  const [activities, setActivities] = useState<ActivityLogEntry[]>([])
 
   const weekRange = useMemo(() => getWeekRange(currentDate), [currentDate])
 
@@ -103,6 +105,21 @@ export function DashboardPage() {
       }
     }
     loadStats()
+    return () => { cancelled = true }
+  }, [])
+
+  /* ── Fetch activity log ── */
+  useEffect(() => {
+    let cancelled = false
+    async function loadActivities() {
+      try {
+        const { data } = await api.get('/settings/activity-log')
+        if (!cancelled) setActivities(data.activities ?? data ?? [])
+      } catch {
+        // Backend unavailable
+      }
+    }
+    loadActivities()
     return () => { cancelled = true }
   }, [])
 
@@ -292,7 +309,7 @@ export function DashboardPage() {
               className="h-full"
             />
           ) : (
-            <ActivityLog />
+            <ActivityLog activities={activities} />
           )}
         </div>
       </div>

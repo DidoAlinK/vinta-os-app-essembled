@@ -4,7 +4,7 @@
  * assigned classes, weekly schedule, and payroll summary.
  */
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   X,
   Phone,
@@ -15,8 +15,11 @@ import {
   Calendar,
   TrendingUp,
   GraduationCap,
+  Trash2,
+  Plus,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import api from '../../lib/api'
 import {
   getInitials,
   formatPhone,
@@ -32,6 +35,8 @@ export interface TeacherDrawerProps {
   teacher: Teacher | null
   isOpen: boolean
   onClose: () => void
+  onDelete?: (id: string) => void
+  onClassCreated?: () => void
 }
 
 // ============================================
@@ -75,8 +80,14 @@ function generateWeeklySchedule(teacher: Teacher | null) {
 // Component
 // ============================================
 
-export default function TeacherDrawer({ teacher, isOpen, onClose }: TeacherDrawerProps) {
+export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onClassCreated }: TeacherDrawerProps) {
   const weeklySchedule = generateWeeklySchedule(teacher)
+
+  /* ── Create Class inline form ── */
+  const [showCreateClass, setShowCreateClass] = useState(false)
+  const [newClassName, setNewClassName] = useState('')
+  const [createClassLoading, setCreateClassLoading] = useState(false)
+  const [createClassError, setCreateClassError] = useState<string | null>(null)
 
   /* ── ESC key handler ── */
   useEffect(() => {
@@ -109,6 +120,42 @@ export default function TeacherDrawer({ teacher, isOpen, onClose }: TeacherDrawe
     },
     [onClose],
   )
+
+  /* ── Create Class handler ── */
+  const handleCreateClass = useCallback(async () => {
+    const trimmed = newClassName.trim()
+    if (!trimmed || !teacher) return
+
+    setCreateClassLoading(true)
+    setCreateClassError(null)
+
+    try {
+      const res = await api.post('/classes', {
+        name: trimmed,
+        teacher_id: teacher.id,
+      })
+      if (res.data?.error) {
+        setCreateClassError(res.data.error)
+        return
+      }
+      setNewClassName('')
+      setShowCreateClass(false)
+      onClassCreated?.()
+    } catch (err: any) {
+      setCreateClassError(err?.response?.data?.error ?? 'Failed to create class.')
+    } finally {
+      setCreateClassLoading(false)
+    }
+  }, [newClassName, teacher, onClassCreated])
+
+  /* ── Reset create class state when drawer closes ── */
+  useEffect(() => {
+    if (!isOpen) {
+      setShowCreateClass(false)
+      setNewClassName('')
+      setCreateClassError(null)
+    }
+  }, [isOpen])
 
   /* ── Derived payroll data ── */
   const estimatedPay =
@@ -213,7 +260,7 @@ export default function TeacherDrawer({ teacher, isOpen, onClose }: TeacherDrawe
             title="Assigned Classes"
           >
             {(teacher.classes_assigned ?? []).length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 mb-3">
                 {teacher.classes_assigned.map((cls, i) => (
                   <span
                     key={i}
@@ -228,7 +275,94 @@ export default function TeacherDrawer({ teacher, isOpen, onClose }: TeacherDrawe
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-[var(--muted)] italic">No classes assigned</p>
+              <p className="text-xs text-[var(--muted)] italic mb-3">No classes assigned</p>
+            )}
+
+            {/* Create Class inline form */}
+            {showCreateClass ? (
+              <div
+                className={cn(
+                  'p-3 rounded-lg',
+                  'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                )}
+              >
+                <p className="text-xs font-medium text-[var(--muted)] mb-2">New Class</p>
+                {createClassError && (
+                  <p className="text-[11px] text-[var(--red)] mb-2">{createClassError}</p>
+                )}
+                <input
+                  type="text"
+                  value={newClassName}
+                  onChange={(e) => setNewClassName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleCreateClass()
+                    }
+                    if (e.key === 'Escape') {
+                      setShowCreateClass(false)
+                      setNewClassName('')
+                      setCreateClassError(null)
+                    }
+                  }}
+                  placeholder="e.g. 1er Lycee"
+                  autoFocus
+                  className={cn(
+                    'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
+                    'bg-[var(--glass)] border border-[var(--glass-border)]',
+                    'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                    'placeholder:text-[var(--muted)]/50',
+                    'transition-shadow duration-150',
+                  )}
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={handleCreateClass}
+                    disabled={!newClassName.trim() || createClassLoading}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-medium text-white',
+                      'hover:opacity-90 active:scale-[0.98]',
+                      'disabled:opacity-40 disabled:cursor-not-allowed',
+                      'transition-all duration-150',
+                    )}
+                    style={{
+                      background: 'linear-gradient(135deg, var(--gold), var(--emerald))',
+                    }}
+                  >
+                    {createClassLoading ? 'Creating...' : 'Create'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateClass(false)
+                      setNewClassName('')
+                      setCreateClassError(null)
+                    }}
+                    disabled={createClassLoading}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-medium',
+                      'text-[var(--muted)] hover:bg-[var(--glass)]',
+                      'transition-colors duration-150',
+                      'disabled:opacity-40',
+                    )}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowCreateClass(true)}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
+                  'text-[var(--gold)] hover:bg-[var(--gold-soft)]',
+                  'border border-dashed border-[var(--gold)]/30',
+                  'transition-all duration-150',
+                  'active:scale-[0.98]',
+                )}
+              >
+                <Plus size={13} />
+                Create Class
+              </button>
             )}
           </Section>
 
@@ -322,21 +456,38 @@ export default function TeacherDrawer({ teacher, isOpen, onClose }: TeacherDrawe
 
         {/* ── Footer Action ───────────────────────── */}
         <div className="px-5 py-4 border-t border-[var(--glass-border)]">
-          {teacher.phone && (
-            <a
-              href={`tel:${teacher.phone}`}
-              className={cn(
-                'w-full flex items-center justify-center gap-2 py-2.5 rounded-xl',
-                'text-sm font-medium',
-                'bg-[var(--emerald)]/10 text-[var(--emerald)]',
-                'hover:bg-[var(--emerald)]/20 active:scale-[0.98]',
-                'transition-all duration-150',
-              )}
-            >
-              <Phone size={15} />
-              Call Teacher
-            </a>
-          )}
+          <div className="flex gap-2">
+            {teacher.phone && (
+              <a
+                href={`tel:${teacher.phone}`}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl',
+                  'text-sm font-medium',
+                  'bg-[var(--emerald)]/10 text-[var(--emerald)]',
+                  'hover:bg-[var(--emerald)]/20 active:scale-[0.98]',
+                  'transition-all duration-150',
+                )}
+              >
+                <Phone size={15} />
+                Call Teacher
+              </a>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(teacher.id)}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl',
+                  'text-sm font-medium',
+                  'bg-[var(--red-soft)] text-[var(--red)]',
+                  'hover:bg-[var(--red)]/20 active:scale-[0.98]',
+                  'transition-all duration-150',
+                )}
+              >
+                <Trash2 size={15} />
+                Delete Teacher
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

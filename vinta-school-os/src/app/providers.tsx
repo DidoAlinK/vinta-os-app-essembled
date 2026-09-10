@@ -7,6 +7,7 @@ import { type ReactNode, useEffect, useState, useCallback } from 'react'
 import { useThemeStore } from '../stores/themeStore'
 import { useAuthStore } from '../stores/authStore'
 import { useUIStore, type Toast } from '../stores/uiStore'
+import { ToastProvider } from '../components/ui/Toast'
 
 // ============================================
 // Toast Container
@@ -62,14 +63,14 @@ function ToastContainer() {
         >
           <span className="mt-0.5 text-base shrink-0">{TOAST_ICONS[t.type]}</span>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground leading-snug">{t.title}</p>
+            <p className="text-sm font-semibold text-[var(--text)] leading-snug">{t.title}</p>
             {t.message && (
-              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t.message}</p>
+              <p className="text-xs text-[var(--muted)] mt-0.5 leading-relaxed">{t.message}</p>
             )}
           </div>
           <button
             onClick={() => handleDismiss(t.id)}
-            className="shrink-0 mt-0.5 text-muted-foreground/60 hover:text-foreground transition-colors"
+            className="shrink-0 mt-0.5 text-[var(--muted)]/60 hover:text-[var(--text)] transition-colors"
             aria-label="Dismiss notification"
           >
             <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
@@ -88,13 +89,13 @@ function ToastContainer() {
 
 function LoadingScreen() {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg)]">
       <div className="flex flex-col items-center gap-4">
         <div className="relative w-10 h-10">
-          <div className="absolute inset-0 rounded-full border-2 border-muted" />
-          <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <div className="absolute inset-0 rounded-full border-2 border-[var(--muted)]" />
+          <div className="absolute inset-0 rounded-full border-2 border-[var(--gold)] border-t-transparent animate-spin" />
         </div>
-        <p className="text-sm text-muted-foreground font-medium">Loading Vinta School OS…</p>
+        <p className="text-sm text-[var(--muted)] font-medium">Loading Vinta School OS…</p>
       </div>
     </div>
   )
@@ -124,10 +125,10 @@ export function Providers({ children }: ProvidersProps) {
   }, [loadUser])
 
   return (
-    <>
+    <ToastProvider>
       {isLoading ? <LoadingScreen /> : children}
       <ToastContainer />
-    </>
+    </ToastProvider>
   )
 }
 

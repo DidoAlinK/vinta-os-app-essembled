@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { cn } from '../../lib/cn'
 import { Card, CardHeader, CardBody } from '../../components/ui/Card'
 import { Toggle } from '../../components/ui/Toggle'
@@ -44,25 +43,10 @@ function OptionChip({
 /* ─── Component ─── */
 
 export function Appearance({ settings, onUpdate }: AppearanceProps) {
-  const { theme, setTheme } = useThemeStore()
+  const { theme, setTheme, fontSize: storeFontSize, setFontSize, language: storeLanguage, setLanguage } = useThemeStore()
   const isDark = theme === 'dark'
-  const fontSize = settings.default_font_size || 'normal'
-  const isArabic = settings.default_language === 'ar'
-
-  // Apply font size to document
-  useEffect(() => {
-    const root = document.documentElement
-    switch (fontSize) {
-      case 'small':
-        root.style.fontSize = '13px'
-        break
-      case 'large':
-        root.style.fontSize = '17px'
-        break
-      default:
-        root.style.fontSize = '15px'
-    }
-  }, [fontSize])
+  const fontSize = settings.default_font_size || storeFontSize || 'normal'
+  const language = settings.default_language || storeLanguage || 'fr'
 
   const handleThemeToggle = (checked: boolean) => {
     const newTheme = checked ? 'dark' : 'light'
@@ -71,7 +55,13 @@ export function Appearance({ settings, onUpdate }: AppearanceProps) {
   }
 
   const handleFontSize = (size: 'small' | 'normal' | 'large') => {
+    setFontSize(size)
     onUpdate({ default_font_size: size })
+  }
+
+  const handleLanguage = (lang: 'fr' | 'ar' | 'en') => {
+    setLanguage(lang)
+    onUpdate({ default_language: lang })
   }
 
   return (
@@ -138,13 +128,18 @@ export function Appearance({ settings, onUpdate }: AppearanceProps) {
           <div className="flex gap-2">
             <OptionChip
               label="Français"
-              selected={!isArabic}
-              onClick={() => onUpdate({ default_language: 'fr' })}
+              selected={language === 'fr'}
+              onClick={() => handleLanguage('fr')}
+            />
+            <OptionChip
+              label="English"
+              selected={language === 'en'}
+              onClick={() => handleLanguage('en')}
             />
             <OptionChip
               label="العربية"
-              selected={isArabic}
-              onClick={() => onUpdate({ default_language: 'ar' })}
+              selected={language === 'ar'}
+              onClick={() => handleLanguage('ar')}
             />
           </div>
         </CardBody>

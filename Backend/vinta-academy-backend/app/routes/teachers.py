@@ -8,6 +8,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required
 from app.extensions import db
 from app.utils.decorators import tenant_required
+from app.utils.audit import log_activity
 from app.models.teacher import Teacher
 from app.services import payroll_service
 from app.schemas.teachers import (
@@ -165,6 +166,16 @@ def create_teacher():
         per_student_rate=data.get("per_student_rate", 0),
     )
     db.session.add(teacher)
+
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="teacher",
+        entity_id=teacher.id,
+        action="created",
+        description=f"Teacher {teacher.full_name} created",
+    )
+
     db.session.commit()
 
     return jsonify({
@@ -216,6 +227,23 @@ def delete_teacher(teacher_id):
     ).first()
     if not teacher:
         return jsonify({"error": "Teacher not found"}), 404
+
+    # Nullify teacher_id on classes (Class.teacher_id is nullable)
+    from app.models.class_room import Class
+    Class.query.filter_by(teacher_id=teacher_id).update({'teacher_id': None})
+
+    # Delete sessions referencing this teacher (Session.teacher_id is NOT NULL)
+    from app.models.scheduling import Session
+    Session.query.filter_by(teacher_id=teacher_id).delete()
+
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="teacher",
+        entity_id=teacher.id,
+        action="deleted",
+        description=f"Teacher {teacher.full_name} deleted",
+    )
 
     db.session.delete(teacher)
     db.session.commit()

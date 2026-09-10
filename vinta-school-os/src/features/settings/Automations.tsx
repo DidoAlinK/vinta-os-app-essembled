@@ -17,7 +17,7 @@ export function Automations() {
     let cancelled = false
     async function load() {
       try {
-        const { data } = await api.get('/settings/appearance')
+        const { data } = await api.get('/settings/automations')
         if (!cancelled) {
           setAutoCheckout(data.auto_checkout_enabled ?? false)
           setEndClassPopup(data.end_class_popup_enabled ?? false)
@@ -33,7 +33,7 @@ export function Automations() {
   const updateSetting = async (key: string, value: boolean) => {
     setIsSaving(true)
     try {
-      await api.put('/settings/appearance', { [key]: value })
+      await api.put('/settings/automations', { [key]: value })
     } catch {
       // Revert on failure
     } finally {

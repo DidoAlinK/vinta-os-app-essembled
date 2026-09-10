@@ -8,6 +8,7 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.utils.decorators import tenant_required, owner_only
+from app.utils.audit import log_activity
 from app.models.user import User
 from app.models.academy import Academy, AcademySettings, Subscription
 from app.services import tenant_service, auth_service, export_service
@@ -57,6 +58,43 @@ def update_academy():
         return jsonify({"error": "Request body is required"}), 400
 
     academy = g.current_academy
+
+    # Handle academy deletion via confirm_delete flag
+    if data.get("confirm_delete"):
+        from app.models.student import Student, Guardian, Enrollment
+        from app.models.teacher import Teacher, TeacherPayroll, TeacherHoursLog
+        from app.models.class_room import Class, Classroom, Subject
+        from app.models.scheduling import Schedule, Session
+        from app.models.billing import PaymentPlan, StudentBilling, PaymentLog
+        from app.models.audit import ActivityLog
+        from app.models.notification import Notification
+        from app.models.attendance import SessionStudent
+        from app.models.user import User
+
+        academy_id = g.current_academy_id
+
+        # Delete all related data
+        for model in [SessionStudent, TeacherHoursLog, TeacherPayroll, PaymentLog,
+                      StudentBilling, PaymentPlan, Enrollment, Session, Schedule,
+                      Class, Subject, Classroom, Teacher, Guardian, Student,
+                      ActivityLog, Notification]:
+            model.query.filter_by(academy_id=academy_id).delete() if hasattr(model, 'academy_id') else None
+            # Some models use academy_id indirectly
+            if model == SessionStudent:
+                continue  # cascade from sessions
+
+        # Delete academy settings and subscription
+        AcademySettings.query.filter_by(academy_id=academy_id).delete()
+        Subscription.query.filter_by(academy_id=academy_id).delete()
+
+        # Delete staff users
+        User.query.filter_by(academy_id=academy_id).delete()
+
+        # Delete the academy itself
+        db.session.delete(academy)
+        db.session.commit()
+        return jsonify({"message": "Academy deleted"}), 200
+
     for field in ("name", "phone", "email", "address", "weekend_day", "current_term"):
         if field in data:
             setattr(academy, field, data[field])
@@ -254,6 +292,16 @@ def add_staff():
         phone=data.get("phone"),
         role=data.get("role", "staff"),
     )
+
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="staff",
+        entity_id=user.id,
+        action="created",
+        description=f"Staff {user.name} ({user.role}) added",
+    )
+
     db.session.commit()
 
     return jsonify({
@@ -339,6 +387,61 @@ def update_profile():
     return jsonify({"message": "Profile updated"}), 200
 
 
+# ── Reset Data ──────────────────────────────────────────────────────
+
+@settings_bp.route("/reset-data", methods=["POST"])
+@jwt_required()
+@tenant_required
+@owner_only
+def reset_academy_data():
+    """
+    Reset all academy data (students, teachers, classes, billing, sessions).
+    Keeps the academy itself and staff accounts.
+    """
+    from flask import g
+    from app.models.student import Student, Guardian, Enrollment
+    from app.models.teacher import Teacher, TeacherPayroll, TeacherHoursLog
+    from app.models.class_room import Class, Classroom, Subject
+    from app.models.scheduling import Schedule, Session
+    from app.models.billing import PaymentPlan, StudentBilling, PaymentLog
+    from app.models.audit import ActivityLog
+    from app.models.notification import Notification
+    from app.models.attendance import SessionStudent
+
+    academy_id = g.current_academy_id
+
+    # Delete in dependency order
+    SessionStudent.query.filter_by(academy_id=academy_id).delete()
+    TeacherHoursLog.query.filter_by(academy_id=academy_id).delete()
+    TeacherPayroll.query.filter_by(academy_id=academy_id).delete()
+    PaymentLog.query.filter_by(academy_id=academy_id).delete()
+    StudentBilling.query.filter_by(academy_id=academy_id).delete()
+    PaymentPlan.query.filter_by(academy_id=academy_id).delete()
+    Enrollment.query.filter_by(academy_id=academy_id).delete()
+    Session.query.filter_by(academy_id=academy_id).delete()
+    Schedule.query.filter_by(academy_id=academy_id).delete()
+    Class.query.filter_by(academy_id=academy_id).delete()
+    Subject.query.filter_by(academy_id=academy_id).delete()
+    Classroom.query.filter_by(academy_id=academy_id).delete()
+    Teacher.query.filter_by(academy_id=academy_id).delete()
+    Guardian.query.filter_by(academy_id=academy_id).delete()
+    Student.query.filter_by(academy_id=academy_id).delete()
+    ActivityLog.query.filter_by(academy_id=academy_id).delete()
+    Notification.query.filter_by(academy_id=academy_id).delete()
+
+    log_activity(
+        academy_id=academy_id,
+        user_id=g.current_user.id,
+        entity_type="academy",
+        entity_id=academy_id,
+        action="reset",
+        description="Academy data reset by owner",
+    )
+
+    db.session.commit()
+    return jsonify({"message": "Academy data has been reset"}), 200
+
+
 # ── Subscription ────────────────────────────────────────────────────
 
 @settings_bp.route("/subscription", methods=["GET"])
@@ -359,3 +462,141 @@ def get_subscription():
         "started_at": sub.started_at.isoformat() if sub.started_at else None,
         "expires_at": sub.expires_at.isoformat() if sub.expires_at else None,
     }), 200
+
+
+# ── Data Export ────────────────────────────────────────────────────
+
+@settings_bp.route("/export/<dataset>", methods=["GET"])
+@jwt_required()
+@tenant_required
+def export_data(dataset):
+    """
+    Export academy data as CSV.
+    Supported datasets: students, teachers, classes, billing, activity-log
+    """
+    from flask import g, Response
+
+    try:
+        if dataset == "students":
+            csv_data = export_service.export_student_roster(g.current_academy_id)
+            filename = "students.csv"
+        elif dataset == "teachers":
+            csv_data = export_service.export_teacher_hours(g.current_academy_id)
+            filename = "teachers.csv"
+        elif dataset == "classes":
+            from app.models.class_room import Class
+            classes = Class.query.filter_by(academy_id=g.current_academy_id).all()
+            import io, csv
+            output = io.StringIO()
+            writer = csv.writer(output)
+            writer.writerow(["Name", "Subject", "Teacher", "Schedule"])
+            for cls in classes:
+                teacher_name = f"{cls.teacher.first_name} {cls.teacher.last_name}" if cls.teacher else ""
+                writer.writerow([cls.name, cls.subject or "", teacher_name, cls.schedule or ""])
+            csv_data = output.getvalue()
+            filename = "classes.csv"
+        elif dataset == "billing":
+            csv_data = export_service.export_billing_history(g.current_academy_id)
+            filename = "billing.csv"
+        elif dataset == "activity-log":
+            from app.models.audit import ActivityLog
+            from app.models.user import User
+            logs = (
+                ActivityLog.query
+                .filter_by(academy_id=g.current_academy_id)
+                .order_by(ActivityLog.created_at.desc())
+                .limit(1000)
+                .all()
+            )
+            import io, csv
+            output = io.StringIO()
+            writer = csv.writer(output)
+            writer.writerow(["Type", "Action", "Description", "User", "Date"])
+            for log in logs:
+                user = db.session.get(User, log.user_id)
+                user_name = f"{user.name}" if user else ""
+                writer.writerow([
+                    log.entity_type,
+                    log.action,
+                    log.description or "",
+                    user_name,
+                    log.created_at.isoformat() if log.created_at else "",
+                ])
+            csv_data = output.getvalue()
+            filename = "activity-log.csv"
+        else:
+            return jsonify({"error": f"Unknown dataset: {dataset}"}), 400
+
+        log_activity(
+            academy_id=g.current_academy_id,
+            user_id=g.current_user.id,
+            entity_type="export",
+            entity_id=dataset,
+            action="exported",
+            description=f"Exported {dataset} data",
+        )
+
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment;filename={filename}"},
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── Activity Log (Dashboard) ──────────────────────────────────────
+
+@settings_bp.route("/activity-log", methods=["GET"])
+@jwt_required()
+@tenant_required
+def get_activity_log():
+    """
+    Get recent activity log entries for the dashboard.
+    Returns entries in the shape the frontend ActivityLog component expects.
+    """
+    from flask import g
+    from app.models.audit import ActivityLog as ActivityLogModel
+
+    limit = request.args.get("limit", 20, type=int)
+
+    logs = (
+        ActivityLogModel.query
+        .filter_by(academy_id=g.current_academy_id)
+        .order_by(ActivityLogModel.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    # Map backend action types to frontend activity types
+    ACTION_TYPE_MAP = {
+        "payment_received": "payment",
+        "payment_overdue": "payment",
+        "checked_in": "checkin",
+        "checked_out": "checkin",
+        "enrolled": "student",
+        "withdrawn": "student",
+        "created": "student",
+        "updated": "student",
+        "deleted": "alert",
+    }
+
+    activities = []
+    for log in logs:
+        user = db.session.get(User, log.user_id)
+        user_name = user.name if user else ""
+        activity_type = ACTION_TYPE_MAP.get(log.action, "alert")
+
+        # Build a human-readable title from the action
+        title = log.description or f"{log.action.replace('_', ' ').title()} — {log.entity_type}"
+
+        activities.append({
+            "id": log.id,
+            "type": activity_type,
+            "title": title,
+            "description": log.description or "",
+            "timestamp": log.created_at.isoformat() + "Z" if log.created_at else "",
+            "staff_name": user_name,
+        })
+
+    return jsonify({"activities": activities}), 200

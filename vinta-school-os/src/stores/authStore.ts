@@ -220,6 +220,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   // ============================================
+  // Switch Profile (go back to profile picker without full logout)
+  // ============================================
+  switchProfile: () => {
+    set({ selectedProfile: null })
+  },
+
+  // ============================================
   // Load User (restore from token)
   // ============================================
   loadUser: async () => {

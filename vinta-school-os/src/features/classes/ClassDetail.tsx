@@ -4,7 +4,7 @@
  * Includes editable header, weekly schedule grid, and student list.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
   Pencil,
@@ -15,6 +15,7 @@ import {
   GraduationCap,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import api from '../../lib/api'
 import {
   HOUR_HEIGHT,
   SUBJECT_COLORS,
@@ -34,6 +35,7 @@ export interface ClassDetailProps {
   cls: Class | null
   isOpen: boolean
   onClose: () => void
+  onDelete?: (id: string) => void
 }
 
 // ============================================
@@ -72,7 +74,7 @@ function timeToMinutes(time: string): number {
 function getScheduleBounds(
   schedules: Class['schedules'],
 ): { minHour: number; maxHour: number } {
-  if (schedules.length === 0) return { minHour: 8, maxHour: 17 }
+  if (!schedules || schedules.length === 0) return { minHour: 8, maxHour: 17 }
 
   let min = 24
   let max = 0
@@ -89,14 +91,14 @@ function getScheduleBounds(
 // Component
 // ============================================
 
-export default function ClassDetail({ cls, isOpen, onClose }: ClassDetailProps) {
+export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDetailProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editSubject, setEditSubject] = useState('')
   const [editColor, setEditColor] = useState('')
 
   // Sync edit state when class changes
-  useMemo(() => {
+  useEffect(() => {
     if (cls) {
       setEditName(cls.name)
       setEditSubject(cls.subject)
@@ -157,6 +159,15 @@ export default function ClassDetail({ cls, isOpen, onClose }: ClassDetailProps) 
     setIsEditing(false)
   }, [])
 
+  const handleDelete = useCallback(async () => {
+    if (!cls) return
+    try {
+      await api.delete(`/classes/${cls.id}`)
+    } catch { /* proceed with local removal regardless */ }
+    onDelete?.(cls.id)
+    onClose()
+  }, [cls, onDelete, onClose])
+
   // ── Render ────────────────────────────────────
 
   if (!isOpen || !cls) return null
@@ -211,6 +222,7 @@ export default function ClassDetail({ cls, isOpen, onClose }: ClassDetailProps) 
                     Edit
                   </button>
                   <button
+                    onClick={handleDelete}
                     className={cn(
                       'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium',
                       'text-[var(--red)] hover:bg-[var(--red-soft)]',
@@ -369,13 +381,13 @@ export default function ClassDetail({ cls, isOpen, onClose }: ClassDetailProps) 
                 </span>
               </div>
               <p className="text-sm font-medium text-[var(--text)]">
-                {cls.schedules.length} slot{cls.schedules.length !== 1 ? 's' : ''}
+                {(cls.schedules || []).length} slot{(cls.schedules || []).length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
 
           {/* ── Weekly Schedule ────────────────────── */}
-          {cls.schedules.length > 0 && (
+          {cls.schedules && cls.schedules.length > 0 && (
             <div className="mb-6">
               <h2
                 className="text-sm font-bold text-[var(--text)] mb-3"

@@ -29,6 +29,7 @@ import type { CalendarSession, Subject } from '../../types/calendar'
 
 export interface WeekViewProps {
   sessions: Session[]
+  selectedDate: Date
   onMoveSession: (id: string, date: string, time: string) => void
   onResizeSession: (id: string, endTime: string) => void
   onSelectSession: (session: Session) => void
@@ -93,6 +94,7 @@ function toCalendarSession(
 
 export default function WeekView({
   sessions,
+  selectedDate,
   onMoveSession,
   onResizeSession,
   onSelectSession,
@@ -105,7 +107,15 @@ export default function WeekView({
     top: number
   } | null>(null)
 
-  const weekDates = getWeekDates(new Date())
+  // Real-time resize preview state
+  const [resizing, setResizing] = useState<{
+    id: string
+    edge: 'top' | 'bottom'
+    top: number
+    height: number
+  } | null>(null)
+
+  const weekDates = getWeekDates(selectedDate)
   const todayIndex = weekDates.findIndex((d) => isToday(d))
 
   // Compute layout constants
@@ -234,24 +244,116 @@ export default function WeekView({
 
   const handleResizeStart = useCallback(
     (session: CalendarSession, edge: 'top' | 'bottom') => {
-      if (edge === 'top') return
+      const MIN_DURATION_MINUTES = 15
+      const durationMinutes = timeToDecimal(session.end_time) * 60 - timeToDecimal(session.start_time) * 60
 
+      if (edge === 'top') {
+        // Top-edge resize: drag upward to extend start time earlier
+        let currentY = session.top
+
+        const handleMouseMove = (e: MouseEvent) => {
+          if (!gridRef.current) return
+          const rect = gridRef.current.getBoundingClientRect()
+          currentY = e.clientY - rect.top + gridRef.current.scrollTop
+
+          // Compute preview values
+          const proposedStartHour = snapHour(
+            currentY / HOUR_HEIGHT + CALENDAR_HOURS[0],
+          )
+          const endDecimal = timeToDecimal(session.end_time)
+          const minStartHour = endDecimal - (durationMinutes / 60)
+          const clampedStartHour = Math.min(
+            proposedStartHour,
+            endDecimal - MIN_DURATION_MINUTES / 60,
+          )
+          const newStartHour = Math.max(
+            CALENDAR_HOURS[0],
+            Math.min(minStartHour, clampedStartHour),
+          )
+
+          const previewTop = (newStartHour - CALENDAR_HOURS[0]) * HOUR_HEIGHT
+          const previewHeight = Math.max(
+            (endDecimal - newStartHour) * HOUR_HEIGHT,
+            (MIN_DURATION_MINUTES / 60) * HOUR_HEIGHT,
+          )
+
+          setResizing({
+            id: session.id,
+            edge: 'top',
+            top: previewTop,
+            height: previewHeight,
+          })
+        }
+
+        const handleMouseUp = () => {
+          const proposedStartHour = snapHour(
+            currentY / HOUR_HEIGHT + CALENDAR_HOURS[0],
+          )
+          const endDecimal = timeToDecimal(session.end_time)
+          const minStartHour = endDecimal - (durationMinutes / 60)
+          const clampedStartHour = Math.min(
+            proposedStartHour,
+            endDecimal - MIN_DURATION_MINUTES / 60,
+          )
+          const newStartHour = Math.max(
+            CALENDAR_HOURS[0],
+            Math.min(minStartHour, clampedStartHour),
+          )
+          const newStartTime = decimalToTime(newStartHour)
+          onMoveSession(session.id, session.date, newStartTime)
+          setResizing(null)
+          cleanup()
+        }
+
+        const cleanup = () => {
+          document.removeEventListener('mousemove', handleMouseMove)
+          document.removeEventListener('mouseup', handleMouseUp)
+        }
+
+        document.addEventListener('mousemove', handleMouseMove)
+        document.addEventListener('mouseup', handleMouseUp)
+        return
+      }
+
+      // Bottom-edge resize
       let currentY = session.top + session.height
 
       const handleMouseMove = (e: MouseEvent) => {
         if (!gridRef.current) return
         const rect = gridRef.current.getBoundingClientRect()
         currentY = e.clientY - rect.top + gridRef.current.scrollTop
+
+        // Compute preview values
+        const newEndHour = snapHour(
+          Math.max(
+            timeToDecimal(session.start_time) + MIN_DURATION_MINUTES / 60,
+            currentY / HOUR_HEIGHT + CALENDAR_HOURS[0],
+          ),
+        )
+        const startDecimal = timeToDecimal(session.start_time)
+
+        const previewHeight = Math.max(
+          (newEndHour - startDecimal) * HOUR_HEIGHT,
+          (MIN_DURATION_MINUTES / 60) * HOUR_HEIGHT,
+        )
+
+        setResizing({
+          id: session.id,
+          edge: 'bottom',
+          top: session.top,
+          height: previewHeight,
+        })
       }
 
       const handleMouseUp = () => {
         const newEndHour = snapHour(
           Math.max(
-            timeToDecimal(session.start_time) + 5 / 60,
+            timeToDecimal(session.start_time) + MIN_DURATION_MINUTES / 60,
             currentY / HOUR_HEIGHT + CALENDAR_HOURS[0],
           ),
         )
         onResizeSession(session.id, decimalToTime(newEndHour))
+        setResizing(null)
         cleanup()
       }
 
@@ -263,7 +365,7 @@ export default function WeekView({
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
     },
-    [onResizeSession],
+    [onResizeSession, onMoveSession],
   )
 
   // ── Now indicator ─────────────────────────────
@@ -285,7 +387,7 @@ export default function WeekView({
       {/* Day headers */}
       <div
         className="flex border-b border-[var(--divider)] shrink-0"
-        style={{ paddingLeft: sideGutter }}
+        style={{ paddingLeft: sideGutter, position: 'relative', zIndex: 10 }}
       >
         {weekDates.map((date, i) => {
           const isTodayCol = i === todayIndex
@@ -357,16 +459,19 @@ export default function WeekView({
               right: 0,
             }}
           >
-            {/* Column separators */}
-            {weekDates.map((_, i) => (
-              <div
-                key={i}
-                className="absolute top-0 bottom-0 border-l border-[var(--divider)]"
-                style={{
-                  left: `${((i + 1) / GRID_DAYS) * 100}%`,
-                }}
-              />
-            ))}
+            {/* Column separators — positioned to match the flex-based header layout */}
+            {weekDates.map((_, i) => {
+              const separatorPct = ((i + 1) / GRID_DAYS) * 100
+              return (
+                <div
+                  key={i}
+                  className="absolute top-0 bottom-0 border-l border-[var(--divider)]"
+                  style={{
+                    left: `${separatorPct}%`,
+                  }}
+                />
+              )
+            })}
 
             {/* Hour row lines */}
             {CALENDAR_HOURS.map((hour) => (
@@ -405,8 +510,6 @@ export default function WeekView({
                 style={{
                   left: cs.left,
                   width: cs.width,
-                  top: cs.top,
-                  height: cs.height,
                 }}
                 draggable={draggingId !== cs.id}
               >
@@ -415,6 +518,9 @@ export default function WeekView({
                   onClick={() => onSelectSession(cs)}
                   onDragStart={() => handleSessionDragStart(cs)}
                   onResizeStart={(edge) => handleResizeStart(cs, edge)}
+                  overrideTop={resizing?.id === cs.id ? resizing.top : undefined}
+                  overrideHeight={resizing?.id === cs.id ? resizing.height : undefined}
+                  resizingEdge={resizing?.id === cs.id ? resizing.edge : null}
                 />
               </div>
             ))}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
+import { toast } from '../../stores/uiStore'
 import type { Academy, AcademySettings, StaffMember } from '../../types/settings'
 import Appearance from './Appearance'
 import MyAccount from './MyAccount'
@@ -94,8 +95,9 @@ export function SettingsPage() {
     try {
       const { data: updated } = await api.put('/settings/academy', data)
       setAcademy(updated)
+      toast.success('Academy profile updated')
     } catch {
-      // Backend unavailable
+      toast.error('Failed to save. Please try again.')
     }
   }
 
@@ -103,8 +105,9 @@ export function SettingsPage() {
     try {
       const { data: updated } = await api.put('/settings/appearance', data)
       setSettings(updated)
+      toast.success('Settings updated')
     } catch {
-      // Backend unavailable
+      toast.error('Failed to save. Please try again.')
     }
   }
 
@@ -128,8 +131,9 @@ export function SettingsPage() {
       setStaff((prev) =>
         prev.map((s) => (s.id === id ? { ...s, is_active: false } : s)),
       )
+      toast.success('Staff member deactivated')
     } catch {
-      // Backend unavailable
+      toast.error('Failed to deactivate staff', 'Please try again.')
     }
   }
 
