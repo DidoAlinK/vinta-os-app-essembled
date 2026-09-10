@@ -14,14 +14,14 @@ class BaseConfig:
 
     SECRET_KEY = os.getenv(
     "SECRET_KEY",
-    secrets.token_hex(32)  # 64-character hex string
+    "bf37c4853774420f9e905b878a6bb32d716549e24c1b9c236866103b0b4c9054"  # 64-character hex string
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # JWT Configuration
     JWT_SECRET_KEY = os.getenv(
     "JWT_SECRET_KEY",
-    secrets.token_hex(32)  # 64-character hex string
+    "4219173fe4079023043637be14aacf7f23bb7cc71aed91978466d75903465d90"  # 64-character hex string
     )
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
