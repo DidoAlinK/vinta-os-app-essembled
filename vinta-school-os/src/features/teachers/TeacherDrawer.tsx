@@ -4,7 +4,7 @@
  * assigned classes, weekly schedule, payroll summary, and payout summary.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   X,
   Phone,
@@ -18,9 +18,14 @@ import {
   Trash2,
   Plus,
   Wallet,
+  Pencil,
+  Save,
+  ChevronDown,
+  Search as SearchIcon,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
+import { toast } from '../../stores/uiStore'
 import {
   getInitials,
   formatPhone,
@@ -43,6 +48,7 @@ export interface TeacherDrawerProps {
   onClose: () => void
   onDelete?: (id: string) => void
   onClassCreated?: () => void
+  onUpdated?: () => void
 }
 
 // ============================================
@@ -101,7 +107,7 @@ function commissionBadgeLabel(commissionType: CommissionType, commissionValue: n
 // Component
 // ============================================
 
-export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onClassCreated }: TeacherDrawerProps) {
+export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onClassCreated, onUpdated }: TeacherDrawerProps) {
   const weeklySchedule = generateWeeklySchedule(teacher)
 
   /* ── Create Class inline form ── */
@@ -114,6 +120,27 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
   const [payouts, setPayouts] = useState<PayoutRecord[]>([])
   const [payoutsLoading, setPayoutsLoading] = useState(false)
   const [payoutsError, setPayoutsError] = useState<string | null>(null)
+
+  /* ── Edit mode state ── */
+  const [isEditing, setIsEditing] = useState(false)
+  const [editFirstName, setEditFirstName] = useState('')
+  const [editLastName, setEditLastName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editSubject, setEditSubject] = useState('')
+  const [editContractType, setEditContractType] = useState<'hourly' | 'per_student'>('hourly')
+  const [editRate, setEditRate] = useState('')
+  const [editCommissionType, setEditCommissionType] = useState<CommissionType>('PERCENTAGE')
+  const [editCommissionValue, setEditCommissionValue] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+
+  /* ── Subject dropdown for edit mode ── */
+  const [subjects, setSubjects] = useState<{ name: string; color: string }[]>([])
+  const [subjectsLoading, setSubjectsLoading] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   /* ── ESC key handler ── */
   useEffect(() => {
@@ -174,6 +201,69 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
     }
   }, [newClassName, teacher, onClassCreated])
 
+  /* ── Edit mode handlers ── */
+  const startEditing = useCallback(() => {
+    if (!teacher) return
+    setEditFirstName(teacher.first_name)
+    setEditLastName(teacher.last_name)
+    setEditPhone(teacher.phone ?? '')
+    setEditSubject(teacher.subject ?? '')
+    setEditContractType(teacher.contract_type)
+    setEditRate(
+      teacher.contract_type === 'hourly'
+        ? (teacher.hourly_rate ?? '').toString()
+        : (teacher.per_student_rate ?? '').toString(),
+    )
+    setEditCommissionType(teacher.commission_type ?? 'PERCENTAGE')
+    setEditCommissionValue(teacher.commission_value != null ? teacher.commission_value.toString() : '')
+    setEditNotes(teacher.notes ?? '')
+    setIsEditing(true)
+  }, [teacher])
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditing(false)
+    setDropdownOpen(false)
+    setSearchTerm('')
+  }, [])
+
+  const handleSave = useCallback(async () => {
+    if (!teacher) return
+    if (!editFirstName.trim()) { toast.error('First name is required'); return }
+    setEditSaving(true)
+    try {
+      const payload: Record<string, unknown> = {
+        first_name: editFirstName.trim(),
+        last_name: editLastName.trim(),
+        phone: editPhone.trim() || undefined,
+        subject: editSubject || undefined,
+        contract_type: editContractType,
+        notes: editNotes.trim() || undefined,
+      }
+      if (editContractType === 'hourly') {
+        payload.hourly_rate = editRate ? Number(editRate) : 0
+      } else {
+        payload.per_student_rate = editRate ? Number(editRate) : 0
+      }
+      payload.commission_type = editCommissionType
+      payload.commission_value = editCommissionValue ? Number(editCommissionValue) : 0
+
+      await api.put(`/teachers/${teacher.id}`, payload)
+      toast.success('Teacher updated successfully')
+      setIsEditing(false)
+      onUpdated?.()
+    } catch {
+      toast.error('Failed to update teacher')
+    } finally {
+      setEditSaving(false)
+    }
+  }, [teacher, editFirstName, editLastName, editPhone, editSubject, editContractType, editRate, editCommissionType, editCommissionValue, editNotes, onUpdated])
+
+  /* ── Filtered subjects for edit dropdown ── */
+  const filteredSubjects = subjects.filter((s) =>
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+  const selectedEditSubject = subjects.find((s) => s.name === editSubject)
+
   /* ── Reset create class state when drawer closes ── */
   useEffect(() => {
     if (!isOpen) {
@@ -217,6 +307,52 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
     if (!isOpen) {
       setPayouts([])
       setPayoutsError(null)
+    }
+  }, [isOpen])
+
+  /* ── Fetch subjects when entering edit mode ── */
+  useEffect(() => {
+    if (!isEditing) return
+    let cancelled = false
+    const fetchSubjects = async () => {
+      setSubjectsLoading(true)
+      try {
+        const res = await api.get<{ subjects: { name: string; color: string }[] }>('/subjects')
+        if (!cancelled) setSubjects(res.data.subjects ?? [])
+      } catch {
+        if (!cancelled) setSubjects([])
+      } finally {
+        if (!cancelled) setSubjectsLoading(false)
+      }
+    }
+    fetchSubjects()
+    return () => { cancelled = true }
+  }, [isEditing])
+
+  /* ── Close dropdown on outside click ── */
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+        setSearchTerm('')
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [dropdownOpen])
+
+  /* ── Focus search input when dropdown opens ── */
+  useEffect(() => {
+    if (dropdownOpen) searchRef.current?.focus()
+  }, [dropdownOpen])
+
+  /* ── Reset edit state when drawer closes ── */
+  useEffect(() => {
+    if (!isOpen) {
+      setIsEditing(false)
+      setDropdownOpen(false)
+      setSearchTerm('')
     }
   }, [isOpen])
 
@@ -280,6 +416,275 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
 
         {/* ── Content ─────────────────────────────── */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+          {isEditing ? (
+            /* ── Edit Form ──────────────────────────── */
+            <div className="space-y-4">
+              <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                Edit Teacher
+              </p>
+
+              {/* First Name */}
+              <EditField label="First Name" required>
+                <input
+                  type="text"
+                  value={editFirstName}
+                  onChange={(e) => setEditFirstName(e.target.value)}
+                  className={editInputCls}
+                />
+              </EditField>
+
+              {/* Last Name */}
+              <EditField label="Last Name">
+                <input
+                  type="text"
+                  value={editLastName}
+                  onChange={(e) => setEditLastName(e.target.value)}
+                  className={editInputCls}
+                />
+              </EditField>
+
+              {/* Phone */}
+              <EditField label="Phone">
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="0555 12 34 56"
+                  className={editInputCls}
+                />
+              </EditField>
+
+              {/* Subject — custom dropdown */}
+              <EditField label="Subject">
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => { setDropdownOpen((o) => !o); setSearchTerm('') }}
+                    className={cn(
+                      editInputCls,
+                      'flex items-center gap-2 text-left',
+                      dropdownOpen && 'ring-2 ring-[var(--gold)]/30',
+                    )}
+                  >
+                    <BookOpen size={14} className="text-[var(--muted)] shrink-0" />
+                    {selectedEditSubject ? (
+                      <span className="flex items-center gap-2 truncate">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: selectedEditSubject.color }}
+                        />
+                        <span className="truncate">{selectedEditSubject.name}</span>
+                      </span>
+                    ) : (
+                      <span className="text-[var(--muted)]">Select subject…</span>
+                    )}
+                    <ChevronDown size={14} className={cn('text-[var(--muted)] ml-auto shrink-0 transition-transform', dropdownOpen && 'rotate-180')} />
+                  </button>
+
+                  {dropdownOpen && (
+                    <div className="absolute z-50 mt-1.5 w-full rounded-xl bg-[var(--bg)] border border-[var(--glass-border)] shadow-xl overflow-hidden animate-fade-in">
+                      {/* Search */}
+                      <div className="relative border-b border-[var(--glass-border)]">
+                        <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+                        <input
+                          ref={searchRef}
+                          type="text"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          placeholder="Search subjects…"
+                          className={cn(
+                            'w-full pl-9 pr-3 py-2 text-sm text-[var(--text)]',
+                            'bg-transparent outline-none',
+                            'placeholder:text-[var(--muted)]',
+                          )}
+                        />
+                      </div>
+
+                      {/* Options */}
+                      <div className="max-h-48 overflow-y-auto py-1">
+                        {subjectsLoading ? (
+                          <div className="px-3 py-4 text-center text-xs text-[var(--muted)]">
+                            Loading subjects…
+                          </div>
+                        ) : filteredSubjects.length === 0 ? (
+                          <div className="px-3 py-4 text-center text-xs text-[var(--muted)]">
+                            {subjects.length === 0 ? 'No subjects yet' : 'No match'}
+                          </div>
+                        ) : (
+                          filteredSubjects.map((s) => (
+                            <button
+                              key={s.name}
+                              type="button"
+                              onClick={() => {
+                                setEditSubject(s.name)
+                                setDropdownOpen(false)
+                                setSearchTerm('')
+                              }}
+                              className={cn(
+                                'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left',
+                                'hover:bg-[var(--glass)] transition-colors duration-100',
+                                editSubject === s.name && 'bg-[var(--gold-soft)] text-[var(--text)] font-medium',
+                                editSubject !== s.name && 'text-[var(--text)]',
+                              )}
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: s.color }}
+                              />
+                              <span className="truncate">{s.name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </EditField>
+
+              {/* Contract Type Toggle */}
+              <EditField label="Contract Type">
+                <div className="flex gap-2">
+                  {(['hourly', 'per_student'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => { setEditContractType(type); setEditRate('') }}
+                      className={cn(
+                        'flex-1 py-2 rounded-xl text-sm font-medium transition-all duration-150',
+                        editContractType === type
+                          ? type === 'hourly'
+                            ? 'bg-[var(--gold-soft)] text-[var(--gold)] border border-[var(--gold)]/30'
+                            : 'bg-[var(--emerald-soft)] text-[var(--emerald)] border border-[var(--emerald)]/30'
+                          : 'bg-[var(--input-bg)] text-[var(--muted)] border border-[var(--glass-border)] hover:border-[var(--muted)]/30',
+                      )}
+                    >
+                      {type === 'hourly' ? 'Hourly' : 'Per Student'}
+                    </button>
+                  ))}
+                </div>
+              </EditField>
+
+              {/* Rate */}
+              <EditField
+                label={editContractType === 'hourly' ? 'Hourly Rate' : 'Per Student Rate'}
+                required
+              >
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={editRate}
+                    onChange={(e) => setEditRate(e.target.value)}
+                    placeholder={editContractType === 'hourly' ? '1500' : '800'}
+                    min={0}
+                    className={cn(editInputCls, 'pr-14')}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--muted)]">
+                    {editContractType === 'hourly' ? 'DA/h' : 'DA/student'}
+                  </span>
+                </div>
+              </EditField>
+
+              {/* Commission Model */}
+              <div className="pt-2 border-t border-[var(--glass-border)]">
+                <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">
+                  Commission Model
+                </p>
+
+                {/* Commission Type Toggle */}
+                <div className="flex gap-2 mb-3">
+                  {(['PERCENTAGE', 'FLAT_HOURLY', 'FIXED_SESSION'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => { setEditCommissionType(type); setEditCommissionValue('') }}
+                      className={cn(
+                        'flex-1 py-2 rounded-xl text-[11px] font-medium transition-all duration-150 leading-tight',
+                        editCommissionType === type
+                          ? 'bg-[var(--gold-soft)] text-[var(--gold)] border border-[var(--gold)]/30'
+                          : 'bg-[var(--input-bg)] text-[var(--muted)] border border-[var(--glass-border)] hover:border-[var(--muted)]/30',
+                      )}
+                    >
+                      <span className="block">{COMMISSION_TYPE_LABELS[type]}</span>
+                      <span className={cn(
+                        'block text-[10px] mt-0.5',
+                        editCommissionType === type ? 'text-[var(--gold)]/70' : 'text-[var(--muted)]/60',
+                      )}>
+                        {type === 'PERCENTAGE' && '% of gross revenue'}
+                        {type === 'FLAT_HOURLY' && 'DA per hour'}
+                        {type === 'FIXED_SESSION' && 'Flat DA per session'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Commission Value Input */}
+                <EditField label="Commission Value">
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={editCommissionValue}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (editCommissionType === 'PERCENTAGE') {
+                          const num = Number(val)
+                          if (val === '' || (num >= 0 && num <= 100)) {
+                            setEditCommissionValue(val)
+                          }
+                        } else {
+                          setEditCommissionValue(val)
+                        }
+                      }}
+                      placeholder={editCommissionType === 'PERCENTAGE' ? '30' : editCommissionType === 'FLAT_HOURLY' ? '1500' : '800'}
+                      min={0}
+                      max={editCommissionType === 'PERCENTAGE' ? 100 : undefined}
+                      className={cn(editInputCls, 'pr-20')}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--muted)]">
+                      {editCommissionType === 'PERCENTAGE' ? '%' : editCommissionType === 'FLAT_HOURLY' ? 'DA/h' : 'DA/session'}
+                    </span>
+                  </div>
+                </EditField>
+              </div>
+
+              {/* Notes */}
+              <EditField label="Notes">
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Optional notes about this teacher…"
+                  rows={2}
+                  className={cn(editInputCls, 'resize-none')}
+                />
+              </EditField>
+
+              {/* Edit actions */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleCancelEdit}
+                  className={cn(
+                    'flex-1 py-2.5 rounded-xl text-sm font-medium',
+                    'bg-[var(--input-bg)] text-[var(--muted)] border border-[var(--glass-border)]',
+                    'hover:bg-[var(--glass)] transition-colors duration-150',
+                  )}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={editSaving}
+                  className={cn(
+                    'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white',
+                    'bg-gradient-to-r from-[#b3872a] to-[#0f6b4d]',
+                    'hover:opacity-90 active:scale-[0.98]',
+                    'disabled:opacity-40 disabled:cursor-not-allowed',
+                    'transition-all duration-150',
+                  )}
+                >
+                  {editSaving ? 'Saving…' : <><Save size={14} /> Save Changes</>}
+                </button>
+              </div>
+            </div>
+          ) : (
           {/* Teacher Info */}
           <div className="flex items-start gap-4">
             <div
@@ -331,7 +736,7 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                 )}
 
                 {teacher.subject && (
-                  <span className="text-[11px] text-[var(--muted)] flex items-center gap-1">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--glass)] border border-[var(--glass-border)] text-[var(--text)] gap-1">
                     <BookOpen size={10} />
                     {teacher.subject}
                   </span>
@@ -615,12 +1020,13 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
               </p>
             </Section>
           )}
+          )}
         </div>
 
         {/* ── Footer Action ───────────────────────── */}
         <div className="px-5 py-4 border-t border-[var(--glass-border)]">
           <div className="flex gap-2">
-            {teacher.phone && (
+            {!isEditing && teacher.phone && (
               <a
                 href={`tel:${teacher.phone}`}
                 className={cn(
@@ -635,7 +1041,22 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                 Call Teacher
               </a>
             )}
-            {onDelete && (
+            {!isEditing && (
+              <button
+                onClick={startEditing}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl',
+                  'text-sm font-medium',
+                  'bg-[var(--gold-soft)] text-[var(--gold)]',
+                  'hover:bg-[var(--gold)]/20 active:scale-[0.98]',
+                  'transition-all duration-150',
+                )}
+              >
+                <Pencil size={15} />
+                Edit Teacher
+              </button>
+            )}
+            {!isEditing && onDelete && (
               <button
                 onClick={() => onDelete(teacher.id)}
                 className={cn(
@@ -740,3 +1161,39 @@ function PayrollStat({
     </div>
   )
 }
+
+// ============================================
+// Edit Field wrapper (internal)
+// ============================================
+
+function EditField({
+  label,
+  required,
+  children,
+}: {
+  label: string
+  required?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label className="flex items-center gap-1 text-xs font-medium text-[var(--muted)] mb-1.5">
+        {label}
+        {required && <span className="text-[var(--red)]">*</span>}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+// ============================================
+// Edit Input class
+// ============================================
+
+const editInputCls = cn(
+  'w-full px-3 py-2 rounded-xl text-sm text-[var(--text)]',
+  'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+  'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+  'placeholder:text-[var(--muted)]',
+  'transition-shadow duration-150',
+)

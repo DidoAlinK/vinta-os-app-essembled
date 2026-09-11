@@ -13,11 +13,12 @@ export interface StaffRolesProps {
   staff: StaffMember[]
   onAdd: () => void
   onDeactivate: (id: string) => void
+  onReactivate: (id: string) => void
 }
 
 /* ─── Component ─── */
 
-export function StaffRoles({ staff, onAdd, onDeactivate }: StaffRolesProps) {
+export function StaffRoles({ staff, onAdd, onDeactivate, onReactivate }: StaffRolesProps) {
   const activeStaff = staff.filter((s) => s.is_active)
   const inactiveStaff = staff.filter((s) => !s.is_active)
 
@@ -128,6 +129,17 @@ export function StaffRoles({ staff, onAdd, onDeactivate }: StaffRolesProps) {
                   <Badge variant="grey" size="sm">
                     Deactivated
                   </Badge>
+
+                  <button
+                    onClick={() => onReactivate(member.id)}
+                    className={cn(
+                      'px-2.5 py-1 rounded-lg text-[11px] font-medium',
+                      'bg-[var(--emerald-soft)] text-[var(--emerald)]',
+                      'hover:opacity-80 transition-opacity',
+                    )}
+                  >
+                    Reactivate
+                  </button>
                 </div>
               ))}
             </div>

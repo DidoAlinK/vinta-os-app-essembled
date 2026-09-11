@@ -35,8 +35,11 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 export type SubscriptionStatus =
   | 'ACTIVE'
   | 'EXPIRED'
+  | 'DEPLETED'
+  | 'EXPIRING_SOON'
   | 'RENEW_REQUIRED'
   | 'ATTENDANCE_WARNING'
+  | 'SUSPENDED'
 
 export interface Subscription {
   id: string
@@ -45,16 +48,16 @@ export interface Subscription {
   group_id: string
   group_name: string
   billing_model: 'CREDIT_BASED' | 'TIME_BASED'
-  // Credit shape
-  credits_total?: number
-  credits_left?: number
-  // Time shape
-  access_start?: string
-  access_end?: string
+  // Credit shape (backend field names)
+  total_credits?: number
+  remaining_credits?: number
+  // Time shape (backend field names)
+  access_start_date?: string
+  access_end_date?: string
+  // Payment
+  amount_paid_da?: number
+  payment_method?: string
   status: SubscriptionStatus
-  attendance_rate?: number // 0-100
-  price_da?: number
-  renews_at?: string
   created_at: string
   updated_at?: string
 }
@@ -116,19 +119,21 @@ export interface RevenueEntry {
 // Payout — per-teacher gross vs cut
 // ============================================
 
-export type PayoutStatus = 'Pending' | 'Paid'
+export type PayoutStatus = 'PENDING' | 'PAID' | 'Pending' | 'Paid'
 
 export interface PayoutRecord {
   id: string
   teacher_id: string
   teacher_name: string
-  period_start?: string
-  period_end?: string
-  gross_da: number
-  cut_da: number
-  net_da: number
+  session_id?: string
+  session_date?: string
+  gross_revenue_da: number
+  commission_type?: string
+  commission_value?: number
+  teacher_cut_da: number
   status: PayoutStatus
   paid_at?: string
+  paid_by_staff_id?: string
   created_at: string
 }
 

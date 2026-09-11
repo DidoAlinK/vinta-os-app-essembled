@@ -58,7 +58,39 @@ export function FinanceBreakdown({ isOpen, onClose, type }: FinanceBreakdownProp
           params: { type: activeTab },
         })
         if (!cancelled) {
-          setBuckets(data.buckets ?? data ?? [])
+          // Transform backend shape {recent, aging, critical} → bucket array
+          const BUCKET_MAP: { key: string; range: string; label: string }[] = [
+            { key: 'recent', range: '1-7', label: '1–7 Days' },
+            { key: 'aging', range: '8-30', label: '8–30 Days' },
+            { key: 'critical', range: '30+', label: '30+ Days' },
+          ]
+          const raw = data.buckets ?? data
+          if (Array.isArray(raw)) {
+            // Already in expected format
+            setBuckets(raw)
+          } else if (raw && typeof raw === 'object') {
+            const transformed: AgingBucket[] = BUCKET_MAP.map(({ key, range, label }) => {
+              const bucket = raw[key] ?? {}
+              const items = (bucket.items ?? []).map((item: Record<string, unknown>) => ({
+                name: item.student_name ?? item.name ?? 'Unknown',
+                amount: item.amount_da ?? item.amount ?? 0,
+                days_overdue: item.days_overdue ?? 0,
+              }))
+              return {
+                range,
+                label,
+                count: bucket.count ?? items.length,
+                total_amount: items.reduce(
+                  (sum: number, e: { amount: number }) => sum + (e.amount || 0),
+                  0,
+                ),
+                entries: items,
+              }
+            })
+            setBuckets(transformed)
+          } else {
+            setBuckets([])
+          }
         }
       } catch {
         if (!cancelled) setBuckets([])

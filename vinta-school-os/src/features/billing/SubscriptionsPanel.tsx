@@ -136,14 +136,14 @@ export function SubscriptionsPanel({ className }: SubscriptionsPanelProps) {
                 <td className="px-3 py-3 text-center">
                   {sub.billing_model === 'CREDIT_BASED' ? (
                     <span className="tabular-nums font-medium text-[var(--text)]">
-                      {sub.credits_left ?? 0}
+                      {sub.remaining_credits ?? 0}
                       <span className="text-[var(--muted)] text-xs ml-0.5">
-                        /{sub.credits_total ?? 0}
+                        /{sub.total_credits ?? 0}
                       </span>
                     </span>
                   ) : (
                     <span className="text-[var(--text)]">
-                      {sub.access_end ? formatDateShort(sub.access_end) : '—'}
+                      {sub.access_end_date ? formatDateShort(sub.access_end_date) : '—'}
                     </span>
                   )}
                 </td>
@@ -157,12 +157,12 @@ export function SubscriptionsPanel({ className }: SubscriptionsPanelProps) {
 
                 {/* Price */}
                 <td className="px-3 py-3 text-right tabular-nums font-medium text-[var(--text)]">
-                  {sub.price_da != null ? formatCurrency(sub.price_da) : '—'}
+                  {sub.amount_paid_da != null ? formatCurrency(sub.amount_paid_da) : '—'}
                 </td>
 
                 {/* Created */}
                 <td className="px-3 py-3 text-right text-[var(--muted)]">
-                  {formatDateShort(sub.created_at)}
+                  {sub.created_at ? formatDateShort(sub.created_at) : '—'}
                 </td>
               </tr>
             )

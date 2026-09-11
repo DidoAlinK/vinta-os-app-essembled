@@ -198,8 +198,15 @@ def renew_billing_cycles(academy_id: str) -> int:
 
 
 def get_billing_stats(academy_id: str) -> dict:
-    """Get aggregate billing statistics for the donut chart."""
+    """Get aggregate billing statistics for the donut chart.
+
+    Returns a flat dict matching the frontend ``BillingStats`` interface:
+    ``student_paid``, ``student_due``, ``student_overdue``, ``student_total``,
+    ``teacher_pending``, ``teacher_settled``, ``teacher_overdue``,
+    ``teacher_total``, ``month_income``, ``total_enrolled``.
+    """
     from app.models.teacher import Teacher, TeacherPayroll
+    from app.models.student import Enrollment
 
     # Student billing ring
     student_billings = StudentBilling.query.join(Student).filter(
@@ -209,6 +216,7 @@ def get_billing_stats(academy_id: str) -> dict:
     paid = sum(1 for b in student_billings if b.status == "paid")
     due = sum(1 for b in student_billings if b.status == "due")
     overdue = sum(1 for b in student_billings if b.status == "overdue")
+    student_total = paid + due + overdue
 
     # Teacher payroll ring
     payrolls = TeacherPayroll.query.join(
@@ -218,14 +226,40 @@ def get_billing_stats(academy_id: str) -> dict:
     payroll_pending = sum(1 for p in payrolls if p.status == "pending")
     payroll_settled = sum(1 for p in payrolls if p.status == "settled")
     payroll_overdue = sum(1 for p in payrolls if p.status == "overdue")
+    teacher_total = payroll_pending + payroll_settled + payroll_overdue
+
+    # This month's income (sum of paid billings in current month)
+    today = date.today()
+    month_start = today.replace(day=1)
+    month_income = int(
+        db.session.query(func.sum(StudentBilling.amount_da))
+        .join(Student)
+        .filter(
+            Student.academy_id == academy_id,
+            StudentBilling.status == "paid",
+            StudentBilling.paid_date >= month_start,
+            StudentBilling.paid_date <= today,
+        )
+        .scalar() or 0
+    )
+
+    # Total active enrollments
+    total_enrolled = Enrollment.query.join(Student).filter(
+        Student.academy_id == academy_id,
+        Enrollment.status == "active",
+    ).count()
 
     return {
-        "student_billing": {"paid": paid, "due": due, "overdue": overdue},
-        "teacher_payroll": {
-            "pending": payroll_pending,
-            "settled": payroll_settled,
-            "overdue": payroll_overdue,
-        },
+        "student_paid": paid,
+        "student_due": due,
+        "student_overdue": overdue,
+        "student_total": student_total,
+        "teacher_pending": payroll_pending,
+        "teacher_settled": payroll_settled,
+        "teacher_overdue": payroll_overdue,
+        "teacher_total": teacher_total,
+        "month_income": month_income,
+        "total_enrolled": total_enrolled,
     }
 
 

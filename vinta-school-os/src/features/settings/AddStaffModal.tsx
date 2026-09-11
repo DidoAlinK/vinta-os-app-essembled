@@ -30,6 +30,7 @@ export default function AddStaffModal({ isOpen, onClose, onAdded }: AddStaffModa
   const [confirmPin, setConfirmPin] = useState('')
   const [phone, setPhone] = useState('')
   const [ownerPin, setOwnerPin] = useState('')
+  const [role, setRole] = useState<'owner' | 'staff'>('staff')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -39,6 +40,7 @@ export default function AddStaffModal({ isOpen, onClose, onAdded }: AddStaffModa
     setConfirmPin('')
     setPhone('')
     setOwnerPin('')
+    setRole('staff')
     setError('')
   }, [])
 
@@ -71,7 +73,7 @@ export default function AddStaffModal({ isOpen, onClose, onAdded }: AddStaffModa
     try {
       await createProfile({
         name: name.trim(),
-        role: 'staff',
+        role,
         pin,
         phone: phone.trim() || undefined,
         avatar_color_1: '#b3872a',
@@ -158,6 +160,29 @@ export default function AddStaffModal({ isOpen, onClose, onAdded }: AddStaffModa
               placeholder="+213 5## ## ## ##"
               className={inputCls}
             />
+          </Field>
+
+          {/* Role */}
+          <Field label="Role" required>
+            <div className="flex gap-2">
+              {(['staff', 'owner'] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={cn(
+                    'flex-1 py-2 rounded-xl text-sm font-medium transition-all duration-150',
+                    role === r
+                      ? r === 'owner'
+                        ? 'bg-[var(--gold-soft)] text-[var(--gold)] border border-[var(--gold)]/30'
+                        : 'bg-[var(--emerald-soft)] text-[var(--emerald)] border border-[var(--emerald)]/30'
+                      : 'bg-[var(--input-bg)] text-[var(--muted)] border border-[var(--glass-border)] hover:border-[var(--muted)]/30',
+                  )}
+                >
+                  {r === 'owner' ? '👑 Owner' : '👤 Staff'}
+                </button>
+              ))}
+            </div>
           </Field>
 
           {/* PIN */}

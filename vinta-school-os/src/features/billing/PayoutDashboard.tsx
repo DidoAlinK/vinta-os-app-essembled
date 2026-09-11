@@ -24,12 +24,15 @@ interface PayoutRecord {
   id: string
   teacher_id: string
   teacher_name: string
+  session_id?: string
   session_date?: string
-  gross_da: number
+  gross_revenue_da: number
   commission_type?: string
-  cut_da: number
-  status: 'Pending' | 'Paid'
+  commission_value?: number
+  teacher_cut_da: number
+  status: 'PENDING' | 'PAID' | 'Pending' | 'Paid'
   paid_at?: string
+  paid_by_staff_id?: string
   created_at: string
 }
 
@@ -211,12 +214,12 @@ export function PayoutDashboard({ className }: PayoutDashboardProps) {
 
   /* ── Summary totals ── */
   const totalPending = records
-    .filter((r) => r.status === 'Pending')
-    .reduce((sum, r) => sum + r.cut_da, 0)
+    .filter((r) => r.status === 'Pending' || r.status === 'PENDING')
+    .reduce((sum, r) => sum + r.teacher_cut_da, 0)
   const totalPaid = records
-    .filter((r) => r.status === 'Paid')
-    .reduce((sum, r) => sum + r.cut_da, 0)
-  const totalAll = records.reduce((sum, r) => sum + r.cut_da, 0)
+    .filter((r) => r.status === 'Paid' || r.status === 'PAID')
+    .reduce((sum, r) => sum + r.teacher_cut_da, 0)
+  const totalAll = records.reduce((sum, r) => sum + r.teacher_cut_da, 0)
 
   /* ── Group by teacher ── */
   const grouped = records.reduce<Record<string, PayoutRecord[]>>((acc, rec) => {
@@ -241,7 +244,7 @@ export function PayoutDashboard({ className }: PayoutDashboardProps) {
       setRecords((prev) =>
         prev.map((r) =>
           r.id === markingId
-            ? { ...r, status: 'Paid' as const, paid_at: new Date().toISOString() }
+            ? { ...r, status: 'PAID' as const, paid_at: new Date().toISOString() }
             : r,
         ),
       )
@@ -344,14 +347,18 @@ export function PayoutDashboard({ className }: PayoutDashboardProps) {
                 {/* Session date */}
                 <div className="flex flex-col min-w-0 shrink-0 w-20">
                   <span className="text-xs text-[var(--muted)]">
-                    {rec.session_date ? formatDateShort(rec.session_date) : formatDateShort(rec.created_at)}
+                    {rec.session_date
+                      ? formatDateShort(rec.session_date)
+                      : rec.created_at
+                        ? formatDateShort(rec.created_at)
+                        : '—'}
                   </span>
                 </div>
 
                 {/* Gross amount */}
                 <div className="flex flex-col min-w-0 shrink-0 w-24">
                   <span className="text-[10px] text-[var(--muted)] uppercase tracking-wide">Gross</span>
-                  <span className="text-sm tabular-nums text-[var(--text)]">{formatCurrency(rec.gross_da)}</span>
+                  <span className="text-sm tabular-nums text-[var(--text)]">{formatCurrency(rec.gross_revenue_da)}</span>
                 </div>
 
                 {/* Commission type */}
@@ -364,7 +371,7 @@ export function PayoutDashboard({ className }: PayoutDashboardProps) {
                 <div className="flex flex-col min-w-0 shrink-0 w-24">
                   <span className="text-[10px] text-[var(--muted)] uppercase tracking-wide">Cut</span>
                   <span className="text-sm font-semibold tabular-nums text-[var(--emerald)]">
-                    {formatCurrency(rec.cut_da)}
+                    {formatCurrency(rec.teacher_cut_da)}
                   </span>
                 </div>
 
@@ -373,14 +380,14 @@ export function PayoutDashboard({ className }: PayoutDashboardProps) {
 
                 {/* Status */}
                 <Badge
-                  variant={rec.status === 'Paid' ? 'success' : 'warning'}
+                  variant={rec.status === 'Paid' || rec.status === 'PAID' ? 'success' : 'warning'}
                   size="sm"
                 >
-                  {rec.status}
+                  {rec.status === 'PENDING' ? 'Pending' : rec.status === 'PAID' ? 'Paid' : rec.status}
                 </Badge>
 
                 {/* Mark as Paid button */}
-                {rec.status === 'Pending' && (
+                {(rec.status === 'Pending' || rec.status === 'PENDING') && (
                   <button
                     type="button"
                     onClick={() => openPinModal(rec.id)}

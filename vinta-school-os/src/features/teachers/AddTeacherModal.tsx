@@ -280,13 +280,13 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
                     <span className="truncate">{selectedSubject.name}</span>
                   </span>
                 ) : (
-                  <span className="text-[var(--muted)]/50">Select subject…</span>
+                  <span className="text-[var(--muted)]">Select subject…</span>
                 )}
                 <ChevronDown size={14} className={cn('text-[var(--muted)] ml-auto shrink-0 transition-transform', dropdownOpen && 'rotate-180')} />
               </button>
 
               {dropdownOpen && (
-                <div className="absolute z-50 mt-1.5 w-full rounded-xl bg-[var(--card-bg)] border border-[var(--glass-border)] shadow-xl overflow-hidden animate-fade-in">
+                <div className="absolute z-50 mt-1.5 w-full rounded-xl bg-[var(--bg)] border border-[var(--glass-border)] shadow-xl overflow-hidden animate-fade-in">
                   {/* Search */}
                   <div className="relative border-b border-[var(--glass-border)]">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
@@ -299,7 +299,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
                       className={cn(
                         'w-full pl-9 pr-3 py-2 text-sm text-[var(--text)]',
                         'bg-transparent outline-none',
-                        'placeholder:text-[var(--muted)]/50',
+                        'placeholder:text-[var(--muted)]',
                       )}
                     />
                   </div>
@@ -327,8 +327,8 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
                           className={cn(
                             'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left',
                             'hover:bg-[var(--glass)] transition-colors duration-100',
-                            subject === s.name && 'bg-[var(--glass)] text-[var(--text)]',
-                            subject !== s.name && 'text-[var(--muted)]',
+                            subject === s.name && 'bg-[var(--gold-soft)] text-[var(--text)] font-medium',
+                            subject !== s.name && 'text-[var(--text)] hover:text-[var(--text)]',
                           )}
                         >
                           <span

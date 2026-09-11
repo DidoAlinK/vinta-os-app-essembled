@@ -196,8 +196,17 @@ def create_profile(data):
     if missing:
         return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
-    # Always create as staff — additional owners require /create-owner
-    role = "staff"
+    role = data.get("role", "staff")
+    if role not in ("owner", "staff"):
+        return jsonify({"error": "Role must be 'owner' or 'staff'"}), 400
+
+    # Prevent creating a second owner
+    if role == "owner":
+        existing_owner = User.query.filter_by(
+            academy_id=user.academy_id, role="owner"
+        ).first()
+        if existing_owner:
+            return jsonify({"error": "An owner already exists for this academy"}), 409
 
     try:
         new_user = tenant_service.create_staff_profile(

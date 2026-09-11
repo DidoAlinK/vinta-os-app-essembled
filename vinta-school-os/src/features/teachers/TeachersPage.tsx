@@ -196,6 +196,7 @@ export default function TeachersPage() {
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}
         onDelete={handleDeleteTeacher}
+        onUpdated={fetchTeachers}
       />
 
       {/* ── Add Teacher Modal ─────────────────────── */}

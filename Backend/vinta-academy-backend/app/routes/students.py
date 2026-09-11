@@ -64,9 +64,10 @@ def get_student(student_id):
 def create_student():
     """
     Create a new student with default guardian and billing.
-    Body: { first_name, last_name, phone?, parent_phone?, notes? }
+    Body: { first_name, last_name, phone?, parent_phone?, notes?, class_id? }
     """
     from flask import g
+    import logging
     data = request.get_json()
     if not data:
         return jsonify({"error": "Request body is required"}), 400
@@ -81,6 +82,16 @@ def create_student():
             created_by=g.current_user.id,
         )
 
+        # Enroll student in class if class_id was provided
+        class_id = data.get("class_id")
+        if class_id:
+            student_service.enroll_student(
+                student_id=student.id,
+                class_id=class_id,
+                academy_id=g.current_academy_id,
+                enrolled_by=g.current_user.id,
+            )
+
         db.session.commit()
         return jsonify({
             "id": student.id,
@@ -88,7 +99,11 @@ def create_student():
             "last_name": student.last_name,
             "full_name": student.full_name,
         }), 201
-    except Exception:
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.exception("Error creating student")
         db.session.rollback()
         return jsonify({"error": "Internal server error"}), 500
 

@@ -140,6 +140,18 @@ export function SettingsPage() {
     }
   }
 
+  const handleReactivateStaff = async (id: string) => {
+    try {
+      await api.post(`/settings/staff/${id}/reactivate`)
+      setStaff((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, is_active: true } : s)),
+      )
+      toast.success('Staff member reactivated')
+    } catch {
+      toast.error('Failed to reactivate staff', 'Please try again.')
+    }
+  }
+
   const handleSectionSelect = (id: string) => {
     setActiveSection(id)
     setMobileNavOpen(false)
@@ -316,6 +328,7 @@ export function SettingsPage() {
               staff={staff}
               onAdd={handleAddStaff}
               onDeactivate={handleDeactivateStaff}
+              onReactivate={handleReactivateStaff}
             />
           )}
           {activeSection === 'billing' && (

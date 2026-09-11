@@ -378,6 +378,47 @@ def deactivate_staff(user_id):
     return jsonify({"message": "Staff deactivated"}), 200
 
 
+@settings_bp.route("/staff/<user_id>/reactivate", methods=["POST"])
+@jwt_required()
+@tenant_required
+@owner_only
+def reactivate_staff(user_id):
+    """Reactivate a previously deactivated staff profile."""
+    from flask import g
+    user = db.session.get(User, user_id)
+    if not user or user.academy_id != g.current_academy_id:
+        return jsonify({"error": "Staff not found"}), 404
+
+    if user.is_active:
+        return jsonify({"message": "Staff is already active"}), 200
+
+    user.is_active = True
+    db.session.commit()
+    return jsonify({"message": "Staff reactivated"}), 200
+
+
+@settings_bp.route("/staff/<user_id>", methods=["DELETE"])
+@jwt_required()
+@tenant_required
+@owner_only
+def delete_staff(user_id):
+    """Permanently delete a staff profile (owner-only)."""
+    from flask import g
+    user = db.session.get(User, user_id)
+    if not user or user.academy_id != g.current_academy_id:
+        return jsonify({"error": "Staff not found"}), 404
+
+    if user.role == "owner":
+        return jsonify({"error": "Cannot delete an owner account"}), 400
+
+    if user_id == g.current_user.id:
+        return jsonify({"error": "Cannot delete your own account"}), 400
+
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({"message": "Staff deleted"}), 200
+
+
 # ── Profile ─────────────────────────────────────────────────────────
 
 @settings_bp.route("/profile", methods=["GET"])

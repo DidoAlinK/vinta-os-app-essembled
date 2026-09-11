@@ -234,7 +234,7 @@ export function MultiPayModal({ isOpen, onClose, onSuccess }: MultiPayModalProps
     try {
       await api.post('/billing/subscriptions/pay', {
         student_id: selectedStudent.id,
-        items: items.map((it) => ({ group_id: it.group_id, amount_da: it.amount_da })),
+        items: items.map((it) => ({ group_id: it.group_id, amount: it.amount_da })),
         total_received: totalReceived,
         payment_method: paymentMethod,
         pin: pin.join(''),

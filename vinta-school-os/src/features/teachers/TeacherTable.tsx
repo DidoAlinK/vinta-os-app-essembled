@@ -121,7 +121,12 @@ function TeacherTable({ teachers, onSelect, isLoading }: TeacherTableProps) {
 
           {/* Subject */}
           <span className="text-sm text-[var(--text)] truncate">
-            {teacher.subject || '—'}
+            {teacher.subject ? (
+              <span className="inline-flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] shrink-0" />
+                {teacher.subject}
+              </span>
+            ) : '—'}
           </span>
 
           {/* Contract Badge */}
