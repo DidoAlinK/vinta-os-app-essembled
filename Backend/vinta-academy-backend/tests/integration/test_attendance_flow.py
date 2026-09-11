@@ -77,6 +77,7 @@ class TestCheckOutFlow:
             json={
                 "session_id": session_obj.id,
                 "student_id": student.id,
+                "pin": "1234",
             },
             headers=auth_headers_owner,
         )
@@ -91,6 +92,7 @@ class TestCheckOutFlow:
             json={
                 "session_id": session_obj.id,
                 "student_id": student.id,
+                "pin": "1234",
             },
             headers=auth_headers_owner,
         )

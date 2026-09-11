@@ -38,6 +38,9 @@ def create_app(config_name="development"):
     jwt.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", "")}})
     limiter.init_app(app)
+    # Disable rate limiter in test environment
+    if app.config.get("TESTING"):
+        limiter.enabled = False
 
     # SocketIO CORS — use configured origins instead of wildcard
     cors_origins = app.config.get("CORS_ORIGINS", "")
