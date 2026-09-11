@@ -392,7 +392,11 @@ function PaymentModal({
 
   const handleAddCustom = () => {
     if (!customAmount) return
-    // Just close — custom payment added
+    onAddPreset({
+      id: Date.now().toString(),
+      name: 'Custom Payment',
+      amount: Number(customAmount),
+    })
     onClose()
   }
 

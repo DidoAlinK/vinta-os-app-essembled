@@ -223,7 +223,12 @@ export default function WeekView({
       const raw = e.dataTransfer.getData('application/vinta-subject')
       if (!raw || !gridRef.current) return
 
-      const subject: Subject = JSON.parse(raw)
+      let subject: Subject
+      try {
+        subject = JSON.parse(raw)
+      } catch {
+        return
+      }
       const rect = gridRef.current.getBoundingClientRect()
       const x = e.clientX - rect.left + gridRef.current.scrollLeft - sideGutter
       const y = e.clientY - rect.top + gridRef.current.scrollTop

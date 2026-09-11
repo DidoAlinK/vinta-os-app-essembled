@@ -92,6 +92,9 @@ def mark_read(notification_id):
     if not notification:
         return jsonify({"error": "Notification not found"}), 404
 
+    if notification.user_id and notification.user_id != g.current_user.id:
+        return jsonify({"error": "Cannot mark another user's notification as read"}), 403
+
     notification.is_read = True
     db.session.commit()
 
@@ -139,10 +142,18 @@ def create_notification():
     if missing:
         return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
+    # Authorization: staff can only create notifications for themselves
+    target_user_id = data.get("user_id")
+    if g.current_user.role != "owner":
+        if target_user_id is None:
+            return jsonify({"error": "Staff cannot broadcast notifications"}), 403
+        if target_user_id != g.current_user.id:
+            return jsonify({"error": "Staff can only create notifications for themselves"}), 403
+
     notification = Notification(
         id=str(uuid.uuid4()),
         academy_id=g.current_academy_id,
-        user_id=data.get("user_id"),  # None = broadcast
+        user_id=target_user_id,  # None = broadcast (owner only)
         type=data["type"],
         title=data["title"],
         message=data["message"],

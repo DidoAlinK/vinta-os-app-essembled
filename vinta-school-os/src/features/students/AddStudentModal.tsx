@@ -60,7 +60,7 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
         const classesRes = await api.get('/classes')
         if (cancelled) return
 
-        const data = classesRes.value.data
+        const data = classesRes.data
         setClassOptions(data.classes ?? data ?? [])
       } catch {
         // Options unavailable — form still works without them

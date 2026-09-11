@@ -1,9 +1,18 @@
 /**
  * Vinta School OS — Class Types
+ * Course groups + physical rooms (Classrooms) + sessions/attendance.
  */
 
 // ============================================
-// Classroom
+// Billing model
+// ============================================
+
+export type BillingModel = 'CREDIT_BASED' | 'TIME_BASED'
+
+export type AttendanceStatus = 'PRESENT' | 'ABSENT'
+
+// ============================================
+// Physical Room (Classroom) — front-desk managed
 // ============================================
 
 export interface Classroom {
@@ -12,10 +21,21 @@ export interface Classroom {
   name: string
   capacity: number
   created_at: string
+  updated_at?: string
+}
+
+export interface CreateClassroomRequest {
+  name: string
+  capacity: number
+}
+
+export interface UpdateClassroomRequest {
+  name?: string
+  capacity?: number
 }
 
 // ============================================
-// Class
+// Class (Course Group)
 // ============================================
 
 export interface Class {
@@ -32,9 +52,38 @@ export interface Class {
   created_at: string
   updated_at: string
 
+  // ── Course-group extensions (optional for backend back-compat) ──
+  group_name?: string // A / B / C
+  academic_level?: string
+  billing_model?: BillingModel
+  price_da?: number
+  credits_per_cycle?: number
+  cycle_week_limit?: number | null
+  allow_rollover?: boolean
+  allow_makeups?: boolean
+  access_duration_weeks?: number | null
+  max_groups_included?: number
+  enforce_attendance?: boolean
+  attendance_threshold?: number // 0-100 (%)
+
+  // ── Per-view billing snapshot (filled by detail/subscription fetch) ──
+  billing_info?: ClassBillingInfo | null
+
   // Computed
   status: 'full' | 'active' | 'empty'
   schedules: Schedule[]
+}
+
+/** Billing snapshot shown as a badge on the group detail */
+export interface ClassBillingInfo {
+  billing_model?: BillingModel
+  price_da?: number
+  credits_left?: number
+  credits_total?: number
+  access_start?: string
+  access_end?: string
+  status?: 'ACTIVE' | 'RENEW_REQUIRED' | 'ATTENDANCE_WARNING' | 'EXPIRED'
+  attendance_rate?: number // 0-100
 }
 
 // ============================================
@@ -72,6 +121,7 @@ export interface Session {
   start_time: string // "HH:MM"
   end_time: string // "HH:MM"
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+  is_finalized?: boolean
   created_at: string
 
   // Computed
@@ -90,6 +140,10 @@ export interface SessionStudent {
   student_id: string
   student_name: string
   is_present: boolean
+  /** New door check-in status */
+  attendance_status?: AttendanceStatus
+  /** True when this student is a guest swapped in from another group */
+  is_group_swap?: boolean
   checked_in_at?: string
   checked_out_at?: string
   checked_in_by?: string
@@ -108,6 +162,19 @@ export interface CreateClassRequest {
   teacher_id?: string
   capacity: number
   notes?: string
+  // Course-group fields
+  group_name?: string
+  academic_level?: string
+  billing_model?: BillingModel
+  price_da?: number
+  credits_per_cycle?: number
+  cycle_week_limit?: number | null
+  allow_rollover?: boolean
+  allow_makeups?: boolean
+  access_duration_weeks?: number | null
+  max_groups_included?: number
+  enforce_attendance?: boolean
+  attendance_threshold?: number
 }
 
 export interface UpdateClassRequest {
@@ -117,6 +184,18 @@ export interface UpdateClassRequest {
   teacher_id?: string
   capacity?: number
   notes?: string
+  group_name?: string
+  academic_level?: string
+  billing_model?: BillingModel
+  price_da?: number
+  credits_per_cycle?: number
+  cycle_week_limit?: number | null
+  allow_rollover?: boolean
+  allow_makeups?: boolean
+  access_duration_weeks?: number | null
+  max_groups_included?: number
+  enforce_attendance?: boolean
+  attendance_threshold?: number
 }
 
 export interface CreateClassroomRequest {
@@ -151,6 +230,20 @@ export interface UpdateSessionRequest {
   start_time?: string
   end_time?: string
   status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+}
+
+export interface CheckInRequest {
+  session_id: string
+  student_id: string
+  status: AttendanceStatus
+  is_group_swap?: boolean
+  pin: string
+}
+
+export interface FinalizeSessionRequest {
+  session_id: string
+  is_done: boolean
+  pin: string
 }
 
 // ============================================

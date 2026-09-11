@@ -27,6 +27,7 @@ class Student(db.Model):
         String(30), comment="Primary parent/guardian emergency number"
     )
     notes: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )
@@ -105,7 +106,10 @@ class Enrollment(db.Model):
         DateTime, default=lambda: datetime.now(timezone.utc)
     )
     status: Mapped[str] = mapped_column(
-        SAEnum("active", "withdrawn", name="enrollment_status_enum"),
+        SAEnum(
+            "active", "withdrawn", "expired", "overdue", "transferred",
+            name="enrollment_status_enum",
+        ),
         default="active",
     )
     created_at: Mapped[datetime] = mapped_column(

@@ -7,11 +7,26 @@ import { Card, CardBody } from '../../components/ui/Card'
 import DonutCards from './DonutCards'
 import RevenueChart from './RevenueChart'
 import FinanceBreakdown from './FinanceBreakdown'
+import SubscriptionsPanel from './SubscriptionsPanel'
+import PayoutDashboard from './PayoutDashboard'
+import MultiPayModal from './MultiPayModal'
 import {
   TrendingUp,
   Users,
   Receipt,
+  Banknote,
+  CreditCard,
+  Wallet,
 } from 'lucide-react'
+
+/* ─── Tab config ─── */
+
+type BillingTab = 'subscriptions' | 'payouts'
+
+const TABS: { key: BillingTab; label: string; icon: React.ElementType }[] = [
+  { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
+  { key: 'payouts', label: 'Payouts', icon: Wallet },
+]
 
 /* ─── Component ─── */
 
@@ -23,6 +38,10 @@ export function BillingPage() {
   const [breakdownOpen, setBreakdownOpen] = useState(false)
   const [breakdownType, setBreakdownType] = useState<'students' | 'teachers'>('students')
 
+  /* ── New state ── */
+  const [activeTab, setActiveTab] = useState<BillingTab>('subscriptions')
+  const [multiPayOpen, setMultiPayOpen] = useState(false)
+
   /* ── Fetch stats ── */
   useEffect(() => {
     let cancelled = false
@@ -32,11 +51,11 @@ export function BillingPage() {
       try {
         const [statsRes, revenueRes] = await Promise.all([
           api.get('/billing/stats'),
-          api.get('/billing/revenue-chart', { params: { property: revenueProperty } }),
+          api.get('/analytics/revenue-chart', { params: { months: 6 } }),
         ])
         if (!cancelled) {
           setStats(statsRes.data)
-          setRevenueData(revenueRes.data.revenue ?? revenueRes.data ?? [])
+          setRevenueData(revenueRes.data.chart_data ?? revenueRes.data ?? [])
         }
       } catch {
         // Backend unavailable
@@ -55,10 +74,10 @@ export function BillingPage() {
 
     async function load() {
       try {
-        const { data } = await api.get('/billing/revenue', {
-          params: { property: revenueProperty },
+        const { data } = await api.get('/analytics/revenue-chart', {
+          params: { months: 6 },
         })
-        if (!cancelled) setRevenueData(data.revenue ?? data ?? [])
+        if (!cancelled) setRevenueData(data.chart_data ?? data ?? [])
       } catch {
         // Backend unavailable
       }
@@ -91,6 +110,12 @@ export function BillingPage() {
     setBreakdownOpen(true)
   }
 
+  const handleMultiPaySuccess = () => {
+    // Refresh subscriptions if we're on that tab
+    // The panel re-fetches on mount, so toggling would work,
+    // but we can also trigger a page-level refresh
+  }
+
   /* ── Render ── */
   if (isLoading) {
     return (
@@ -105,6 +130,38 @@ export function BillingPage() {
 
   return (
     <div className="flex flex-col gap-5 p-4 h-full overflow-y-auto">
+      {/* ── Header with Multi-Pay button ──────────────── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-[var(--text)] font-[family-name:var(--font-heading)]">
+            Billing
+          </h1>
+          <p className="text-xs text-[var(--muted)] mt-0.5">
+            Manage subscriptions, payouts, and payments
+          </p>
+        </div>
+
+        {/* Multi-Teacher Payment button */}
+        <button
+          type="button"
+          onClick={() => setMultiPayOpen(true)}
+          className={cn(
+            'inline-flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-sm)]',
+            'text-sm font-semibold',
+            'bg-gradient-to-r from-[var(--gold)] to-[var(--gold-dark, #9a7520)]',
+            'text-white',
+            'shadow-[0_4px_20px_rgba(179,135,42,.3)]',
+            'hover:shadow-[0_6px_28px_rgba(179,135,42,.5)]',
+            'hover:scale-[1.02]',
+            'active:scale-[0.98]',
+            'transition-all duration-200',
+          )}
+        >
+          <Banknote className="w-4 h-4" />
+          Multi-Teacher Payment
+        </button>
+      </div>
+
       {/* ── Donut ring cards ───────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div
@@ -207,11 +264,52 @@ export function BillingPage() {
         </button>
       </div>
 
+      {/* ── Subscriptions / Payouts tabbed section ─── */}
+      <div className="rounded-[var(--radius-lg)] border border-[var(--glass-border)] bg-[var(--glass)] backdrop-blur-[22px] shadow-[var(--glass-shadow)] overflow-hidden">
+        {/* Tab bar */}
+        <div className="flex items-center gap-0 border-b border-[var(--glass-border)]">
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveTab(key)}
+              className={cn(
+                'relative flex items-center gap-2 px-5 py-3.5 text-sm font-medium',
+                'transition-colors duration-150',
+                activeTab === key
+                  ? 'text-[var(--gold)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text)]',
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+              {/* Gold underline for active tab */}
+              {activeTab === key && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--gold)] rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div className="p-4">
+          {activeTab === 'subscriptions' && <SubscriptionsPanel />}
+          {activeTab === 'payouts' && <PayoutDashboard />}
+        </div>
+      </div>
+
       {/* ── Finance breakdown modal ────────────── */}
       <FinanceBreakdown
         isOpen={breakdownOpen}
         onClose={() => setBreakdownOpen(false)}
         type={breakdownType}
+      />
+
+      {/* ── Multi-Teacher Payment modal ────────── */}
+      <MultiPayModal
+        isOpen={multiPayOpen}
+        onClose={() => setMultiPayOpen(false)}
+        onSuccess={handleMultiPaySuccess}
       />
     </div>
   )

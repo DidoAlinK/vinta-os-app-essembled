@@ -77,8 +77,13 @@ class Session(db.Model):
         String(100), comment="Denormalized from Class"
     )
     status: Mapped[str] = mapped_column(
-        SAEnum("scheduled", "in_progress", "completed", "cancelled", name="session_status_enum"),
+        SAEnum(
+            "scheduled", "conducted", "cancelled",
+            "in_progress", "completed",
+            name="session_status_enum",
+        ),
         default="scheduled",
+        comment="New code uses scheduled/conducted/cancelled; in_progress/completed kept as legacy",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)

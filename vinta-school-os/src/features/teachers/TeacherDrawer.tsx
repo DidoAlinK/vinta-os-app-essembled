@@ -1,7 +1,7 @@
 /**
  * Vinta School OS — Teacher Drawer
  * Slide-in panel from the right showing teacher details,
- * assigned classes, weekly schedule, and payroll summary.
+ * assigned classes, weekly schedule, payroll summary, and payout summary.
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -17,6 +17,7 @@ import {
   GraduationCap,
   Trash2,
   Plus,
+  Wallet,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
@@ -24,8 +25,13 @@ import {
   getInitials,
   formatPhone,
   formatCurrency,
+  formatDa,
+  formatDateShort,
 } from '../../lib/formatters'
 import type { Teacher } from '../../types/teacher'
+import { COMMISSION_TYPE_LABELS } from '../../types/teacher'
+import type { CommissionType } from '../../types/teacher'
+import type { PayoutRecord } from '../../types/billing'
 
 // ============================================
 // Props
@@ -77,6 +83,21 @@ function generateWeeklySchedule(teacher: Teacher | null) {
 }
 
 // ============================================
+// Commission badge label helper
+// ============================================
+
+function commissionBadgeLabel(commissionType: CommissionType, commissionValue: number): string {
+  switch (commissionType) {
+    case 'PERCENTAGE':
+      return `${commissionValue}% of gross`
+    case 'FLAT_HOURLY':
+      return `${formatDa(commissionValue)}/h`
+    case 'FIXED_SESSION':
+      return `${formatDa(commissionValue)}/session`
+  }
+}
+
+// ============================================
 // Component
 // ============================================
 
@@ -88,6 +109,11 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
   const [newClassName, setNewClassName] = useState('')
   const [createClassLoading, setCreateClassLoading] = useState(false)
   const [createClassError, setCreateClassError] = useState<string | null>(null)
+
+  /* ── Payout summary state ── */
+  const [payouts, setPayouts] = useState<PayoutRecord[]>([])
+  const [payoutsLoading, setPayoutsLoading] = useState(false)
+  const [payoutsError, setPayoutsError] = useState<string | null>(null)
 
   /* ── ESC key handler ── */
   useEffect(() => {
@@ -157,6 +183,43 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
     }
   }, [isOpen])
 
+  /* ── Fetch payouts when drawer opens ── */
+  useEffect(() => {
+    if (!isOpen || !teacher) return
+    let cancelled = false
+
+    const fetchPayouts = async () => {
+      setPayoutsLoading(true)
+      setPayoutsError(null)
+      try {
+        const res = await api.get('/billing/payouts', {
+          params: { teacher_id: teacher.id },
+        })
+        if (!cancelled) {
+          setPayouts(res.data?.payouts ?? res.data ?? [])
+        }
+      } catch {
+        if (!cancelled) {
+          setPayoutsError('Could not load payout data.')
+          setPayouts([])
+        }
+      } finally {
+        if (!cancelled) setPayoutsLoading(false)
+      }
+    }
+
+    fetchPayouts()
+    return () => { cancelled = true }
+  }, [isOpen, teacher])
+
+  /* ── Reset payouts when drawer closes ── */
+  useEffect(() => {
+    if (!isOpen) {
+      setPayouts([])
+      setPayoutsError(null)
+    }
+  }, [isOpen])
+
   /* ── Derived payroll data ── */
   const estimatedPay =
     teacher?.contract_type === 'hourly'
@@ -165,6 +228,14 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
 
   const weeklyHours = teacher?.hours_this_week ?? 0
   const studentCount = teacher?.students_count ?? 0
+
+  /* ── Derived payout data ── */
+  const totalPending = payouts
+    .filter((p) => p.status === 'Pending')
+    .reduce((sum, p) => sum + p.cut_da, 0)
+  const totalPaid = payouts
+    .filter((p) => p.status === 'Paid')
+    .reduce((sum, p) => sum + p.cut_da, 0)
 
   if (!isOpen || !teacher) return null
 
@@ -233,7 +304,8 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                   {formatPhone(teacher.phone)}
                 </p>
               )}
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                {/* Contract type badge */}
                 <span
                   className={cn(
                     'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium',
@@ -244,6 +316,20 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                 >
                   {teacher.contract_type === 'hourly' ? 'Hourly' : 'Per Student'}
                 </span>
+
+                {/* Commission model badge */}
+                {teacher.commission_type && teacher.commission_value != null && (
+                  <span
+                    className={cn(
+                      'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium',
+                      'bg-[var(--glass)] border border-[var(--glass-border)]',
+                      'text-[var(--text)]',
+                    )}
+                  >
+                    {commissionBadgeLabel(teacher.commission_type, teacher.commission_value)}
+                  </span>
+                )}
+
                 {teacher.subject && (
                   <span className="text-[11px] text-[var(--muted)] flex items-center gap-1">
                     <BookOpen size={10} />
@@ -427,11 +513,13 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
               <PayrollStat
                 label="Rate"
                 value={
-                  teacher.contract_type === 'hourly' && teacher.hourly_rate
-                    ? `${formatCurrency(teacher.hourly_rate)}/h`
-                    : teacher.per_student_rate
-                      ? `${formatCurrency(teacher.per_student_rate)}/student`
-                      : '—'
+                  teacher.commission_type && teacher.commission_value != null
+                    ? commissionRateLabel(teacher.commission_type, teacher.commission_value)
+                    : teacher.contract_type === 'hourly' && teacher.hourly_rate
+                      ? `${formatCurrency(teacher.hourly_rate)}/h`
+                      : teacher.per_student_rate
+                        ? `${formatCurrency(teacher.per_student_rate)}/student`
+                        : '—'
                 }
                 icon={<TrendingUp size={12} />}
               />
@@ -442,6 +530,81 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                 highlight
               />
             </div>
+          </Section>
+
+          {/* Payout Summary */}
+          <Section
+            icon={<Wallet size={14} />}
+            title="Payout Summary"
+          >
+            {payoutsLoading ? (
+              <p className="text-xs text-[var(--muted)] italic">Loading payouts…</p>
+            ) : payoutsError ? (
+              <p className="text-xs text-[var(--red)]">{payoutsError}</p>
+            ) : (
+              <>
+                {/* Summary row */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <PayrollStat
+                    label="Total Pending"
+                    value={formatDa(totalPending)}
+                    icon={<Clock size={12} />}
+                  />
+                  <PayrollStat
+                    label="Total Paid"
+                    value={formatDa(totalPaid)}
+                    icon={<GraduationCap size={12} />}
+                    highlight
+                  />
+                </div>
+
+                {/* Payout rows */}
+                {payouts.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {payouts.map((payout) => (
+                      <div
+                        key={payout.id}
+                        className={cn(
+                          'flex items-center gap-2 px-3 py-2 rounded-lg',
+                          'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-[var(--text)] truncate">
+                            {payout.period_start
+                              ? formatDateShort(payout.period_start)
+                              : '—'}
+                            {payout.period_end
+                              ? ` – ${formatDateShort(payout.period_end)}`
+                              : ''}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-[var(--muted)]">
+                              Gross {formatDa(payout.gross_da)}
+                            </span>
+                            <span className="text-[10px] text-[var(--muted)]">
+                              Cut {formatDa(payout.cut_da)}
+                            </span>
+                          </div>
+                        </div>
+                        <span
+                          className={cn(
+                            'shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium',
+                            payout.status === 'Paid'
+                              ? 'bg-[var(--emerald-soft)] text-[var(--emerald)]'
+                              : 'bg-[var(--gold-soft)] text-[var(--gold)]',
+                          )}
+                        >
+                          {payout.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-[var(--muted)] italic">No payouts recorded yet.</p>
+                )}
+              </>
+            )}
           </Section>
 
           {/* Notes */}
@@ -492,6 +655,21 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
       </div>
     </div>
   )
+}
+
+// ============================================
+// Commission rate label (for Payroll Summary)
+// ============================================
+
+function commissionRateLabel(commissionType: CommissionType, commissionValue: number): string {
+  switch (commissionType) {
+    case 'PERCENTAGE':
+      return `${commissionValue}%/session`
+    case 'FLAT_HOURLY':
+      return `${formatDa(commissionValue)}/h`
+    case 'FIXED_SESSION':
+      return `${formatDa(commissionValue)}/session`
+  }
 }
 
 // ============================================

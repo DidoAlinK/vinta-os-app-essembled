@@ -36,6 +36,18 @@ class SessionStudent(db.Model):
         String(36), ForeignKey("users.id"), nullable=True,
         comment="Which staff member logged the check-in"
     )
+    status: Mapped[str] = mapped_column(
+        String(20), default="PRESENT", nullable=False,
+        comment="PRESENT|ABSENT (kept in sync with is_present)",
+    )
+    is_group_swap: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False,
+        comment="True when attendance counts for a different group (swap/makeup)",
+    )
+    timestamp: Mapped[datetime | None] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc),
+        comment="When attendance was recorded",
+    )
     payment_status: Mapped[str] = mapped_column(
         SAEnum("paid", "due", "overdue", name="session_payment_status_enum"),
         default="paid",

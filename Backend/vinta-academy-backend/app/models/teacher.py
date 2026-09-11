@@ -26,6 +26,9 @@ class Teacher(db.Model):
     first_name: Mapped[str] = mapped_column(String(255), nullable=False)
     last_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(30))
+    avatar: Mapped[str | None] = mapped_column(
+        String(500), nullable=True, comment="Avatar URL or path (nullable)"
+    )
     subject: Mapped[str | None] = mapped_column(
         String(100), comment="Primary subject (Math, French, English, Science)"
     )
@@ -38,7 +41,19 @@ class Teacher(db.Model):
         Integer, nullable=True, comment="DA per hour — for hourly contracts"
     )
     per_student_rate: Mapped[int | None] = mapped_column(
-        Integer, nullable=True, comment="DA per student — for per-student contracts"
+        Integer, nullable=True, comment="DA per student — for per-student contracts (legacy)"
+    )
+    commission_type: Mapped[str] = mapped_column(
+        SAEnum(
+            "PERCENTAGE", "FLAT_HOURLY", "FIXED_SESSION",
+            name="teacher_commission_type_enum",
+        ),
+        default="PERCENTAGE", nullable=False,
+        comment="Authoritative commission model (new); legacy contract_type kept for compat",
+    )
+    commission_value: Mapped[int] = mapped_column(
+        Integer, default=30, nullable=False,
+        comment="DZD integer: % for PERCENTAGE, DA/hour for FLAT_HOURLY, DA/session for FIXED_SESSION",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)

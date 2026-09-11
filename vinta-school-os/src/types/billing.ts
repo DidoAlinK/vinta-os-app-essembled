@@ -1,5 +1,6 @@
 /**
  * Vinta School OS — Billing Types
+ * Plans, subscriptions (credit + time), payouts, multi-pay receipts.
  */
 
 // ============================================
@@ -13,6 +14,49 @@ export interface PaymentPlan {
   duration_days: number
   amount_da: number
   created_at: string
+}
+
+// ============================================
+// Payment method (multi-pay modal)
+// ============================================
+
+export type PaymentMethod = 'CASH' | 'CCP' | 'BARIDI_MOB'
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  CASH: 'Cash',
+  CCP: 'CCP',
+  BARIDI_MOB: 'Baridi Mob',
+}
+
+// ============================================
+// Subscription — per-student per-group credit/time shape
+// ============================================
+
+export type SubscriptionStatus =
+  | 'ACTIVE'
+  | 'EXPIRED'
+  | 'RENEW_REQUIRED'
+  | 'ATTENDANCE_WARNING'
+
+export interface Subscription {
+  id: string
+  student_id: string
+  student_name: string
+  group_id: string
+  group_name: string
+  billing_model: 'CREDIT_BASED' | 'TIME_BASED'
+  // Credit shape
+  credits_total?: number
+  credits_left?: number
+  // Time shape
+  access_start?: string
+  access_end?: string
+  status: SubscriptionStatus
+  attendance_rate?: number // 0-100
+  price_da?: number
+  renews_at?: string
+  created_at: string
+  updated_at?: string
 }
 
 // ============================================
@@ -54,6 +98,66 @@ export interface PaymentLog {
   recorded_by_name: string
   notes?: string
   created_at: string
+}
+
+// ============================================
+// Revenue entry (analytics)
+// ============================================
+
+export interface RevenueEntry {
+  id: string
+  source: string
+  amount_da: number
+  recorded_at: string
+  payment_method?: PaymentMethod
+}
+
+// ============================================
+// Payout — per-teacher gross vs cut
+// ============================================
+
+export type PayoutStatus = 'Pending' | 'Paid'
+
+export interface PayoutRecord {
+  id: string
+  teacher_id: string
+  teacher_name: string
+  period_start?: string
+  period_end?: string
+  gross_da: number
+  cut_da: number
+  net_da: number
+  status: PayoutStatus
+  paid_at?: string
+  created_at: string
+}
+
+// ============================================
+// Multi-pay receipt — one student, several groups
+// ============================================
+
+export interface GroupCharge {
+  group_id: string
+  group_name: string
+  amount_da: number
+}
+
+export interface MultiPayReceipt {
+  id: string
+  student_id: string
+  student_name: string
+  charges: GroupCharge[]
+  total_da: number
+  payment_method: PaymentMethod
+  recorded_by?: string
+  created_at: string
+}
+
+export interface MultiPayRequest {
+  student_id: string
+  charges: GroupCharge[]
+  payment_method: PaymentMethod
+  pin: string
 }
 
 // ============================================

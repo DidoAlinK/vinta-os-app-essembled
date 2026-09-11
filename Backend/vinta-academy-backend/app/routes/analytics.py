@@ -4,6 +4,7 @@ Vinta School OS — Analytics Blueprint
 """
 import csv
 import io
+import re
 from flask_smorest import Blueprint
 from flask import request, jsonify, Response
 from flask_jwt_extended import jwt_required
@@ -60,7 +61,10 @@ def get_dashboard():
     # Monthly income
     from sqlalchemy import func
     from app.models.billing import StudentBilling
+    from calendar import monthrange
     month_start = today.replace(day=1)
+    _, last_day = monthrange(today.year, today.month)
+    month_end = month_start.replace(day=last_day)
     monthly_income = (
         db.session.query(func.sum(StudentBilling.amount_da))
         .join(Student)
@@ -68,6 +72,7 @@ def get_dashboard():
             Student.academy_id == academy_id,
             StudentBilling.status == "paid",
             StudentBilling.paid_date >= month_start,
+            StudentBilling.paid_date <= month_end,
         )
         .scalar() or 0
     )
@@ -120,6 +125,10 @@ def export_data(dataset):
             filename = "teacher_hours.csv"
         elif dataset == "chart_data":
             chart_type = request.args.get("chart_type", "income")
+            # Sanitize chart_type to prevent path traversal in filename
+            chart_type = re.sub(r"[^a-zA-Z0-9_-]", "", chart_type)
+            if not chart_type:
+                chart_type = "income"
             csv_data = export_service.export_chart_data(g.current_academy_id, chart_type)
             filename = f"chart_{chart_type}.csv"
         else:
@@ -130,5 +139,5 @@ def export_data(dataset):
             mimetype="text/csv",
             headers={"Content-Disposition": f"attachment;filename={filename}"},
         )
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Internal server error"}), 500

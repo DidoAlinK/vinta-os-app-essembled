@@ -22,7 +22,7 @@ def export_student_roster(academy_id: str) -> str:
     writer = csv.writer(output)
     writer.writerow(["Name", "Phone", "Parent Phone", "Classes", "Status", "Plan"])
 
-    students = Student.query.filter_by(academy_id=academy_id).all()
+    students = Student.query.filter_by(academy_id=academy_id, is_active=True).all()
 
     for student in students:
         # Get enrollments

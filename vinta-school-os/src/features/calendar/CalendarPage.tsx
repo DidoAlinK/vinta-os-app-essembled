@@ -15,7 +15,11 @@ import {
   X,
   Pencil,
   Check,
+  UserCheck,
+  CheckCircle2,
 } from 'lucide-react'
+import SessionCheckInModal from './SessionCheckInModal'
+import FinalizeSessionModal from './FinalizeSessionModal'
 import { cn } from '../../lib/cn'
 import {
   formatDateISO,
@@ -94,6 +98,8 @@ export function CalendarPageInner({
   const [editStartTime, setEditStartTime] = useState('')
   const [editEndTime, setEditEndTime] = useState('')
   const editNameRef = useRef<HTMLInputElement>(null)
+  const [checkInOpen, setCheckInOpen] = useState(false)
+  const [finalizeOpen, setFinalizeOpen] = useState(false)
 
   // ── Navigation ────────────────────────────────
 
@@ -440,6 +446,34 @@ export function CalendarPageInner({
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {/* Check-In button */}
+                  <button
+                    onClick={() => setCheckInOpen(true)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
+                      'bg-[var(--gold-soft)] text-[var(--gold)]',
+                      'hover:bg-[var(--gold)]/20 active:scale-[0.98]',
+                      'transition-all duration-150',
+                    )}
+                    title="Door check-in"
+                  >
+                    <UserCheck size={13} />
+                    Check-In
+                  </button>
+                  {/* Finalize button */}
+                  <button
+                    onClick={() => setFinalizeOpen(true)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
+                      'bg-[var(--emerald-soft)] text-[var(--emerald)]',
+                      'hover:bg-[var(--emerald)]/20 active:scale-[0.98]',
+                      'transition-all duration-150',
+                    )}
+                    title="Finalize session"
+                  >
+                    <CheckCircle2 size={13} />
+                    Done?
+                  </button>
                   <button
                     onClick={() => startEditing(selectedSession)}
                     className="p-1.5 rounded-lg hover:bg-[var(--glass)] transition-colors"
@@ -458,6 +492,20 @@ export function CalendarPageInner({
             )}
           </div>
         )}
+
+      {/* ── Check-In Modal ──────────────────── */}
+      <SessionCheckInModal
+        isOpen={checkInOpen}
+        onClose={() => setCheckInOpen(false)}
+        session={selectedSession}
+      />
+
+      {/* ── Finalize Modal ──────────────────── */}
+      <FinalizeSessionModal
+        isOpen={finalizeOpen}
+        onClose={() => setFinalizeOpen(false)}
+        session={selectedSession}
+      />
       </div>
     </div>
   )

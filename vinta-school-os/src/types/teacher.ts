@@ -3,6 +3,18 @@
  */
 
 // ============================================
+// Commission model
+// ============================================
+
+export type CommissionType = 'FLAT_HOURLY' | 'PERCENTAGE' | 'FIXED_SESSION'
+
+export const COMMISSION_TYPE_LABELS: Record<CommissionType, string> = {
+  FLAT_HOURLY: 'Flat hourly',
+  PERCENTAGE: 'Percentage',
+  FIXED_SESSION: 'Fixed per session',
+}
+
+// ============================================
 // Teacher
 // ============================================
 
@@ -17,6 +29,9 @@ export interface Teacher {
   contract_type: 'hourly' | 'per_student'
   hourly_rate?: number
   per_student_rate?: number
+  // New commission model (optional for back-compat)
+  commission_type?: CommissionType
+  commission_value?: number
   created_at: string
   updated_at: string
 
@@ -25,6 +40,16 @@ export interface Teacher {
   classes_assigned: string[]
   hours_this_week: number
   students_count: number
+}
+
+/** Payout summary shown in the teacher drawer */
+export interface TeacherPayoutSummary {
+  teacher_id: string
+  gross_da: number
+  cut_da: number
+  net_da: number
+  pending_da: number
+  paid_da: number
 }
 
 // ============================================
@@ -72,6 +97,8 @@ export interface CreateTeacherRequest {
   contract_type: 'hourly' | 'per_student'
   hourly_rate?: number
   per_student_rate?: number
+  commission_type?: CommissionType
+  commission_value?: number
 }
 
 export interface UpdateTeacherRequest {
@@ -83,6 +110,8 @@ export interface UpdateTeacherRequest {
   contract_type?: 'hourly' | 'per_student'
   hourly_rate?: number
   per_student_rate?: number
+  commission_type?: CommissionType
+  commission_value?: number
 }
 
 // ============================================

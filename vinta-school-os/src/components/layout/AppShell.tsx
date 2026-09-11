@@ -1,11 +1,8 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
-import { useUIStore } from '../../stores/uiStore'
 
 export function AppShell() {
-  const currentPage = useUIStore(s => s.currentPage)
-
   return (
     <div className="flex h-screen w-screen overflow-hidden" style={{ background: 'var(--bg-grad)', backgroundColor: 'var(--bg)' }}>
       <Sidebar />

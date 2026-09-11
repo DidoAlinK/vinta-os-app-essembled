@@ -2,7 +2,7 @@
 Vinta School OS — Configuration Environments
 Dev, Test, and Production configurations for the Flask application.
 """
-import os,secrets
+import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
@@ -12,25 +12,19 @@ load_dotenv()
 class BaseConfig:
     """Shared configuration across all environments."""
 
-    SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "bf37c4853774420f9e905b878a6bb32d716549e24c1b9c236866103b0b4c9054"  # 64-character hex string
-    )
+    SECRET_KEY = os.environ.get("SECRET_KEY")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # JWT Configuration
-    JWT_SECRET_KEY = os.getenv(
-    "JWT_SECRET_KEY",
-    "4219173fe4079023043637be14aacf7f23bb7cc71aed91978466d75903465d90"  # 64-character hex string
-    )
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
-    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=int(os.getenv("JWT_ACCESS_MINUTES", "60")))
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=int(os.getenv("JWT_REFRESH_DAYS", "7")))
     JWT_TOKEN_LOCATION = ["headers"]
     JWT_HEADER_NAME = "Authorization"
     JWT_HEADER_TYPE = "Bearer"
 
     # CORS
-    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "")
 
     # SQLAlchemy
     SQLALCHEMY_DATABASE_URI = os.getenv(
@@ -86,3 +80,17 @@ config_by_name = {
     "testing": TestingConfig,
     "production": ProductionConfig,
 }
+
+
+def validate_config():
+    """Fail fast if critical secrets are not configured."""
+    import sys
+    missing = []
+    if not BaseConfig.SECRET_KEY:
+        missing.append("SECRET_KEY")
+    if not BaseConfig.JWT_SECRET_KEY:
+        missing.append("JWT_SECRET_KEY")
+    if missing:
+        print(f"FATAL: Missing required environment variables: {', '.join(missing)}", file=sys.stderr)
+        print("Set these in your .env file or environment before starting the application.", file=sys.stderr)
+        sys.exit(1)

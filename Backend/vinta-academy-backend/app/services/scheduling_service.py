@@ -20,6 +20,8 @@ def snap_time(hour: int, minute: int) -> time:
     """Snap a time to the nearest 5-minute grid."""
     snapped_minute = (minute // SNAP_MINUTES) * SNAP_MINUTES
     if snapped_minute >= 60:
+        if hour + 1 >= 24:
+            return time(23, 55)
         return time(hour + 1, 0)
     return time(hour, snapped_minute)
 
@@ -69,6 +71,9 @@ def create_session(academy_id: str, data: dict, created_by: str) -> Session:
 
     teacher_id = data.get("teacher_id") or class_.teacher_id
     subject = data.get("subject") or class_.subject
+
+    if not teacher_id:
+        raise ValueError("Class has no teacher assigned. Please assign a teacher first.")
 
     session = Session(
         id=str(uuid.uuid4()),

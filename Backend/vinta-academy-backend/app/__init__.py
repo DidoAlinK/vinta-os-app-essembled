@@ -4,11 +4,14 @@ Creates and configures the Flask application with all extensions and blueprints.
 """
 from flask import Flask
 from app.config import config_by_name
-from app.extensions import db, migrate, jwt, cors, socketio, api
+from app.extensions import db, migrate, jwt, cors, socketio, api, limiter
 
 
 def create_app(config_name="development"):
     """Application factory pattern."""
+    from app.config import validate_config
+    validate_config()
+
     app = Flask(__name__)
     app.config.from_object(config_by_name[config_name])
 
@@ -16,23 +19,51 @@ def create_app(config_name="development"):
     app.config["API_TITLE"] = "Vinta School OS API"
     app.config["API_VERSION"] = "v1"
     app.config["OPENAPI_VERSION"] = "3.1.0"
-    app.config["OPENAPI_URL_PREFIX"] = "/api/docs"
-    app.config["OPENAPI_JSON_PATH"] = "openapi.json"
-    # Swagger UI: PATH = route path under prefix, URL = CDN for JS/CSS assets
-    app.config["OPENAPI_SWAGGER_UI_PATH"] = "/"
-    app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.18.2/"
-    app.config["OPENAPI_SWAGGER_UI_CONFIG"] = {"docExpansion": "none"}
-    # Disable ReDoc and RapiDoc (only Swagger UI needed)
-    app.config["OPENAPI_REDOC_URL"] = None
-    app.config["OPENAPI_RAPIDOC_URL"] = None
+
+    # Gate Swagger UI in production (H-07)
+    if config_name != "production":
+        app.config["OPENAPI_URL_PREFIX"] = "/api/docs"
+        app.config["OPENAPI_JSON_PATH"] = "openapi.json"
+        app.config["OPENAPI_SWAGGER_UI_PATH"] = "/"
+        app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.18.2/"
+        app.config["OPENAPI_SWAGGER_UI_CONFIG"] = {"docExpansion": "none"}
+        app.config["OPENAPI_REDOC_URL"] = None
+        app.config["OPENAPI_RAPIDOC_URL"] = None
+    else:
+        app.config["OPENAPI_URL_PREFIX"] = None
 
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", "*")}})
-    socketio.init_app(app, cors_allowed_origins="*")
+    cors.init_app(app, resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", "")}})
+    limiter.init_app(app)
+
+    # SocketIO CORS — use configured origins instead of wildcard
+    cors_origins = app.config.get("CORS_ORIGINS", "")
+    allowed = [o.strip() for o in cors_origins.split(",") if o.strip()] if cors_origins else ["http://localhost:5173"]
+    socketio.init_app(app, cors_allowed_origins=allowed)
+
     api.init_app(app)
+
+    # JWT token blocklist callback (C-05)
+    from app.utils.token_blacklist import is_token_blacklisted
+
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header, jwt_payload):
+        jti = jwt_payload["jti"]
+        return is_token_blacklisted(jti)
+
+    # Security headers middleware
+    @app.after_request
+    def set_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        if config_name == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
 
     # Register error handlers
     from app.utils.error_handlers import register_error_handlers

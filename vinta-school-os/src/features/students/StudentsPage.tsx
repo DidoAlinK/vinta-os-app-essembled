@@ -13,11 +13,9 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
-import { formatCurrency } from '../../lib/formatters'
 import { toast } from '../../stores/uiStore'
 import StudentTable from './StudentTable'
 import StudentDrawer from './StudentDrawer'
-import StudentForm from './StudentForm'
 import AddStudentModal from './AddStudentModal'
 import type { Student } from '../../types/student'
 
@@ -30,7 +28,6 @@ export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([])
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [isFormOpen, setIsFormOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -49,8 +46,8 @@ export default function StudentsPage() {
     try {
       const { data } = await api.get('/students')
       setStudents(data.students ?? data)
-    } catch (err) {
-      console.error('[StudentsPage] Failed to fetch students', err)
+    } catch {
+      // Error handled by empty state
     } finally {
       setIsLoading(false)
     }
@@ -92,9 +89,7 @@ export default function StudentsPage() {
           setStudents((prev) => [data, ...prev])
           toast.success('Student created successfully')
         }
-        setIsFormOpen(false)
-      } catch (err) {
-        console.error('[StudentsPage] Failed to save student', err)
+      } catch {
         toast.error('Failed to save. Please try again.')
       }
     },
@@ -260,14 +255,6 @@ export default function StudentsPage() {
         student={selectedStudent}
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}
-      />
-
-      {/* ── Student Form Modal (Edit) ─────────────── */}
-      <StudentForm
-        student={selectedStudent}
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSave={handleSaveStudent}
       />
 
       {/* ── Add Student Modal ────────────────────── */}

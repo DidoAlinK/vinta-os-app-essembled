@@ -130,6 +130,9 @@ def update_appearance():
     """
     from flask import g
     data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
     settings = AcademySettings.query.filter_by(academy_id=g.current_academy_id).first()
     if not settings:
         return jsonify({"error": "Settings not found"}), 404
@@ -162,6 +165,11 @@ def get_billing_config():
         "billing_reminder_days_before": settings.billing_reminder_days_before,
         "due_date_reminder_timing": settings.due_date_reminder_timing,
         "whatsapp_template": settings.whatsapp_template,
+        "default_credits_per_cycle": settings.default_credits_per_cycle,
+        "allow_rollover_default": settings.allow_rollover_default,
+        "allow_makeups_default": settings.allow_makeups_default,
+        "default_access_weeks": settings.default_access_weeks,
+        "default_max_groups": settings.default_max_groups,
     }), 200
 
 
@@ -173,21 +181,35 @@ def update_billing_config():
     """
     Update billing configuration (owner-only).
     Body: { currency?, default_plan_duration?, billing_reminder_days_before?,
-            due_date_reminder_timing?, whatsapp_template? }
+            due_date_reminder_timing?, whatsapp_template?,
+            default_credits_per_cycle?, allow_rollover_default?,
+            allow_makeups_default?, default_access_weeks?, default_max_groups? }
+    Currency is locked to DZD on write: any other value is ignored with a warning.
     """
     from flask import g
     data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
     settings = AcademySettings.query.filter_by(academy_id=g.current_academy_id).first()
     if not settings:
         return jsonify({"error": "Settings not found"}), 404
 
-    for field in ("currency", "default_plan_duration", "billing_reminder_days_before",
-                  "due_date_reminder_timing", "whatsapp_template"):
+    warning = None
+    if "currency" in data and data["currency"] != "DZD":
+        warning = "currency is locked to DZD and was not changed"
+    for field in ("default_plan_duration", "billing_reminder_days_before",
+                  "due_date_reminder_timing", "whatsapp_template",
+                  "default_credits_per_cycle", "allow_rollover_default",
+                  "allow_makeups_default", "default_access_weeks",
+                  "default_max_groups"):
         if field in data:
             setattr(settings, field, data[field])
 
     db.session.commit()
-    return jsonify({"message": "Billing config updated"}), 200
+    payload = {"message": "Billing config updated"}
+    if warning:
+        payload["warning"] = warning
+    return jsonify(payload), 200
 
 
 @settings_bp.route("/automations", methods=["GET"])
@@ -268,7 +290,7 @@ def list_staff():
 def add_staff():
     """
     Add a new staff profile (owner-only, requires owner PIN).
-    Body: { name, pin, phone?, role? }
+    Body: { name, pin, phone? }
     """
     from flask import g
     data = request.get_json()
@@ -290,7 +312,7 @@ def add_staff():
         name=data["name"],
         pin=data["pin"],
         phone=data.get("phone"),
-        role=data.get("role", "staff"),
+        role="staff",  # Always staff — owner creation is a separate flow
     )
 
     log_activity(
@@ -322,9 +344,13 @@ def update_staff(user_id):
         return jsonify({"error": "Staff not found"}), 404
 
     data = request.get_json()
-    for field in ("name", "phone", "role"):
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    for field in ("name", "phone"):
         if field in data:
             setattr(user, field, data[field])
+    # Role cannot be changed via update — use create-profile for new roles
 
     db.session.commit()
     return jsonify({"message": "Staff updated"}), 200
@@ -336,12 +362,16 @@ def update_staff(user_id):
 @owner_only
 def deactivate_staff(user_id):
     """Deactivate a staff profile (soft-delete)."""
+    from flask import g
     user = db.session.get(User, user_id)
     if not user or user.academy_id != g.current_academy_id:
         return jsonify({"error": "Staff not found"}), 404
 
     if user.role == "owner":
         return jsonify({"error": "Cannot deactivate an owner account"}), 400
+
+    if user_id == g.current_user.id:
+        return jsonify({"error": "Cannot deactivate your own account"}), 400
 
     user.is_active = False
     db.session.commit()
@@ -377,6 +407,9 @@ def update_profile():
     """
     from flask import g
     data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
     user = g.current_user
 
     for field in ("name", "phone", "email"):
@@ -399,32 +432,26 @@ def reset_academy_data():
     Keeps the academy itself and staff accounts.
     """
     from flask import g
-    from app.models.student import Student, Guardian, Enrollment
-    from app.models.teacher import Teacher, TeacherPayroll, TeacherHoursLog
+    from app.models.student import Student
+    from app.models.teacher import Teacher
     from app.models.class_room import Class, Classroom, Subject
     from app.models.scheduling import Schedule, Session
-    from app.models.billing import PaymentPlan, StudentBilling, PaymentLog
+    from app.models.billing import PaymentPlan, StudentBilling
     from app.models.audit import ActivityLog
     from app.models.notification import Notification
-    from app.models.attendance import SessionStudent
 
     academy_id = g.current_academy_id
 
-    # Delete in dependency order
-    SessionStudent.query.filter_by(academy_id=academy_id).delete()
-    TeacherHoursLog.query.filter_by(academy_id=academy_id).delete()
-    TeacherPayroll.query.filter_by(academy_id=academy_id).delete()
-    PaymentLog.query.filter_by(academy_id=academy_id).delete()
+    # Delete in dependency order — only models that actually have academy_id
+    # Children first (Session, PaymentPlan, StudentBilling), then parents
+    Session.query.filter_by(academy_id=academy_id).delete()
     StudentBilling.query.filter_by(academy_id=academy_id).delete()
     PaymentPlan.query.filter_by(academy_id=academy_id).delete()
-    Enrollment.query.filter_by(academy_id=academy_id).delete()
-    Session.query.filter_by(academy_id=academy_id).delete()
     Schedule.query.filter_by(academy_id=academy_id).delete()
     Class.query.filter_by(academy_id=academy_id).delete()
     Subject.query.filter_by(academy_id=academy_id).delete()
     Classroom.query.filter_by(academy_id=academy_id).delete()
     Teacher.query.filter_by(academy_id=academy_id).delete()
-    Guardian.query.filter_by(academy_id=academy_id).delete()
     Student.query.filter_by(academy_id=academy_id).delete()
     ActivityLog.query.filter_by(academy_id=academy_id).delete()
     Notification.query.filter_by(academy_id=academy_id).delete()
@@ -485,6 +512,7 @@ def export_data(dataset):
             filename = "teachers.csv"
         elif dataset == "classes":
             from app.models.class_room import Class
+            from app.models.scheduling import Schedule
             classes = Class.query.filter_by(academy_id=g.current_academy_id).all()
             import io, csv
             output = io.StringIO()
@@ -492,7 +520,9 @@ def export_data(dataset):
             writer.writerow(["Name", "Subject", "Teacher", "Schedule"])
             for cls in classes:
                 teacher_name = f"{cls.teacher.first_name} {cls.teacher.last_name}" if cls.teacher else ""
-                writer.writerow([cls.name, cls.subject or "", teacher_name, cls.schedule or ""])
+                schedules = Schedule.query.filter_by(class_id=cls.id).all()
+                schedule_str = ", ".join(f"{s.day_of_week}:{s.start_time}-{s.end_time}" for s in schedules)
+                writer.writerow([cls.name, cls.subject or "", teacher_name, schedule_str])
             csv_data = output.getvalue()
             filename = "classes.csv"
         elif dataset == "billing":
@@ -541,8 +571,8 @@ def export_data(dataset):
             mimetype="text/csv",
             headers={"Content-Disposition": f"attachment;filename={filename}"},
         )
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Internal server error"}), 500
 
 
 # ── Activity Log (Dashboard) ──────────────────────────────────────

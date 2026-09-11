@@ -6,6 +6,7 @@ from flask_smorest import Blueprint
 from flask import request, jsonify, g
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
+from app.utils.rate_limiter import limiter, LOGIN_LIMIT, VERIFY_PIN_LIMIT, SIGNUP_LIMIT, CREATE_OWNER_LIMIT
 from app.models.user import User
 from app.services import auth_service, tenant_service
 from app.schemas.auth import (
@@ -20,6 +21,7 @@ auth_bp = Blueprint("auth", __name__, description="Authentication & profile mana
 
 
 @auth_bp.route("/signup", methods=["POST"])
+@limiter.limit(SIGNUP_LIMIT)
 @auth_bp.arguments(SignupRequestSchema)
 @auth_bp.response(201, SignupResponseSchema)
 @auth_bp.doc(responses={400: ("Validation error", ErrorSchema), 500: ("Server error", ErrorSchema)})
@@ -35,12 +37,13 @@ def signup(data):
         )
         db.session.commit()
         return result, 201
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit(LOGIN_LIMIT)
 @auth_bp.arguments(LoginRequestSchema)
 @auth_bp.response(200, TokenResponseSchema)
 @auth_bp.doc(responses={400: ("Validation error", ErrorSchema), 401: ("Invalid credentials", ErrorSchema)})
@@ -92,6 +95,7 @@ def get_profiles():
 
 
 @auth_bp.route("/verify-pin", methods=["POST"])
+@limiter.limit(VERIFY_PIN_LIMIT)
 @auth_bp.arguments(VerifyPinRequestSchema)
 @auth_bp.response(200, TokenResponseSchema)
 @auth_bp.doc(
@@ -118,6 +122,7 @@ def verify_pin(data):
 
 
 @auth_bp.route("/create-owner", methods=["POST"])
+@limiter.limit(CREATE_OWNER_LIMIT)
 @auth_bp.arguments(CreateOwnerRequestSchema)
 @auth_bp.response(201, CreateOwnerResponseSchema)
 @auth_bp.doc(
@@ -160,9 +165,9 @@ def create_owner(data):
             "role": owner.role,
             "academy_id": owner.academy_id,
         }), 201
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @auth_bp.route("/create-profile", methods=["POST"])
@@ -191,13 +196,16 @@ def create_profile(data):
     if missing:
         return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
+    # Always create as staff — additional owners require /create-owner
+    role = "staff"
+
     try:
         new_user = tenant_service.create_staff_profile(
             academy_id=user.academy_id,
             name=data["name"],
             pin=data["pin"],
             phone=data.get("phone"),
-            role=data.get("role", "staff"),
+            role=role,
         )
         db.session.commit()
         return jsonify({
@@ -205,9 +213,9 @@ def create_profile(data):
             "name": new_user.name,
             "role": new_user.role,
         }), 201
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @auth_bp.route("/change-pin", methods=["POST"])
@@ -249,3 +257,15 @@ def get_current_user():
         "picture": user.picture,
         "is_active": user.is_active,
     }), 200
+
+
+@auth_bp.route("/logout", methods=["POST"])
+@jwt_required()
+@auth_bp.doc(security=[{"Bearer": []}], responses={200: ("Logged out", MessageSchema)})
+def logout():
+    """Revoke the current JWT token (logout)."""
+    from flask_jwt_extended import get_jwt
+    from app.utils.token_blacklist import blacklist_token
+    jwt_data = get_jwt()
+    blacklist_token(jwt_data["jti"], jwt_data["exp"])
+    return jsonify({"message": "Logged out successfully"}), 200

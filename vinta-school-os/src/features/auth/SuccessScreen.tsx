@@ -2,11 +2,13 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check } from 'lucide-react'
 
+const target = '/app/dashboard'
+
 export default function SuccessScreen() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const timer = setTimeout(() => navigate('/app/dashboard'), 3000)
+    const timer = setTimeout(() => navigate(target), 3000)
     return () => clearTimeout(timer)
   }, [navigate])
 
@@ -36,6 +38,13 @@ export default function SuccessScreen() {
           <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--emerald)', animationDelay: '0.2s' }} />
           <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--emerald)', animationDelay: '0.4s' }} />
         </div>
+        <button
+          onClick={() => navigate(target)}
+          className="mt-6 px-6 py-2.5 rounded-xl text-sm font-medium text-white transition-all hover:opacity-90 active:scale-[0.98]"
+          style={{ background: 'var(--emerald)' }}
+        >
+          Continue
+        </button>
       </div>
     </div>
   )

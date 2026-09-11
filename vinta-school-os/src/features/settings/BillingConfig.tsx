@@ -4,7 +4,7 @@ import { Card, CardHeader, CardBody } from '../../components/ui/Card'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import type { AcademySettings } from '../../types/settings'
-import { Save, Plus, X, Trash2 } from 'lucide-react'
+import { Save, Plus, X, Trash2, Coins, Clock, Users } from 'lucide-react'
 
 /* ─── Props ─── */
 
@@ -68,6 +68,12 @@ export function BillingConfig({ settings, onUpdate }: BillingConfigProps) {
     default_plan_duration: settings.default_plan_duration,
     billing_reminder_days_before: settings.billing_reminder_days_before,
     whatsapp_template: settings.whatsapp_template,
+    // New money model defaults
+    default_credits_per_cycle: (settings as any).default_credits_per_cycle ?? 4,
+    allow_rollover_default: (settings as any).allow_rollover_default ?? false,
+    allow_makeups_default: (settings as any).allow_makeups_default ?? true,
+    default_access_weeks: (settings as any).default_access_weeks ?? null,
+    default_max_groups: (settings as any).default_max_groups ?? 1,
   })
   const [isSaving, setIsSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -155,6 +161,120 @@ export function BillingConfig({ settings, onUpdate }: BillingConfigProps) {
                   {opt.label}
                 </button>
               ))}
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Money Model Defaults */}
+      <Card>
+        <CardHeader title="Money Model Defaults" />
+        <CardBody>
+          <p className="text-sm text-[var(--muted)] mb-4">
+            Default values applied to new Course Groups. You can override per-group.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Credits per cycle */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[var(--muted)] flex items-center gap-1.5">
+                <Coins size={12} />
+                Credits per Cycle
+              </label>
+              <input
+                type="number"
+                value={form.default_credits_per_cycle}
+                onChange={(e) => handleChange('default_credits_per_cycle', Number(e.target.value))}
+                min={1}
+                className={cn(inputCls)}
+              />
+              <span className="text-[10px] text-[var(--muted)]">For CREDIT_BASED groups</span>
+            </div>
+
+            {/* Max groups included */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[var(--muted)] flex items-center gap-1.5">
+                <Users size={12} />
+                Max Groups per Subscription
+              </label>
+              <input
+                type="number"
+                value={form.default_max_groups}
+                onChange={(e) => handleChange('default_max_groups', Number(e.target.value))}
+                min={1}
+                max={10}
+                className={cn(inputCls)}
+              />
+            </div>
+
+            {/* Default access weeks */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[var(--muted)] flex items-center gap-1.5">
+                <Clock size={12} />
+                Access Duration (weeks)
+              </label>
+              <input
+                type="number"
+                value={form.default_access_weeks ?? ''}
+                onChange={(e) => handleChange('default_access_weeks', e.target.value ? Number(e.target.value) : null)}
+                min={1}
+                placeholder="Not set"
+                className={cn(inputCls)}
+              />
+              <span className="text-[10px] text-[var(--muted)]">For TIME_BASED groups</span>
+            </div>
+
+            {/* Allow Rollover */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[var(--muted)]">Credit Rollover</label>
+              <button
+                type="button"
+                onClick={() => handleChange('allow_rollover_default', !form.allow_rollover_default)}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium',
+                  'border transition-all duration-150 text-left',
+                  form.allow_rollover_default
+                    ? 'bg-[var(--emerald-soft)] border-[var(--emerald)]/30 text-[var(--emerald)]'
+                    : 'bg-[var(--input-bg)] border-[var(--glass-border)] text-[var(--muted)]',
+                )}
+              >
+                <span className={cn(
+                  'w-8 h-4 rounded-full relative transition-colors duration-200',
+                  form.allow_rollover_default ? 'bg-[var(--emerald)]' : 'bg-[var(--muted)]/30',
+                )}>
+                  <span className={cn(
+                    'absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200',
+                    form.allow_rollover_default ? 'left-4.5' : 'left-0.5',
+                  )} />
+                </span>
+                {form.allow_rollover_default ? 'On' : 'Off'}
+              </button>
+            </div>
+
+            {/* Allow Makeups */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[var(--muted)]">Makeup Sessions</label>
+              <button
+                type="button"
+                onClick={() => handleChange('allow_makeups_default', !form.allow_makeups_default)}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium',
+                  'border transition-all duration-150 text-left',
+                  form.allow_makeups_default
+                    ? 'bg-[var(--emerald-soft)] border-[var(--emerald)]/30 text-[var(--emerald)]'
+                    : 'bg-[var(--input-bg)] border-[var(--glass-border)] text-[var(--muted)]',
+                )}
+              >
+                <span className={cn(
+                  'w-8 h-4 rounded-full relative transition-colors duration-200',
+                  form.allow_makeups_default ? 'bg-[var(--emerald)]' : 'bg-[var(--muted)]/30',
+                )}>
+                  <span className={cn(
+                    'absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all duration-200',
+                    form.allow_makeups_default ? 'left-4.5' : 'left-0.5',
+                  )} />
+                </span>
+                {form.allow_makeups_default ? 'On' : 'Off'}
+              </button>
             </div>
           </div>
         </CardBody>
@@ -358,5 +478,13 @@ export function BillingConfig({ settings, onUpdate }: BillingConfigProps) {
     </div>
   )
 }
+
+const inputCls = cn(
+  'w-full px-3 py-2 rounded-xl text-sm text-[var(--text)]',
+  'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+  'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+  'placeholder:text-[var(--muted)]/50',
+  'transition-shadow duration-150',
+)
 
 export default BillingConfig

@@ -1,7 +1,7 @@
 """
 Auth schemas — Login, Signup, PIN verification, Profile management.
 """
-from marshmallow import EXCLUDE, Schema, fields
+from marshmallow import EXCLUDE, Schema, fields, validate
 
 
 # ── Request Schemas ────────────────────────────────────────────────
@@ -22,7 +22,10 @@ class LoginRequestSchema(Schema):
 class VerifyPinRequestSchema(Schema):
     """POST /api/auth/verify-pin"""
     user_id = fields.String(required=True, metadata={"description": "Profile user ID", "example": "uuid-string"})
-    pin = fields.String(required=True, metadata={"description": "4-6 digit PIN", "example": "1234"})
+    pin = fields.String(required=True, validate=[
+        validate.Length(min=4, max=6),
+        validate.Regexp(r"^\d{4,6}$", error="PIN must be 4-6 numeric digits"),
+    ], metadata={"description": "4-6 digit PIN", "example": "1234"})
 
 
 class CreateOwnerRequestSchema(Schema):
@@ -31,13 +34,19 @@ class CreateOwnerRequestSchema(Schema):
     name = fields.String(required=True, metadata={"description": "Owner full name", "example": "Ahmed Benali"})
     email = fields.String(required=True, metadata={"description": "Owner email", "example": "ahmed@albaraka.dz"})
     password = fields.String(required=True, metadata={"description": "Owner password", "example": "SecurePass123!"})
-    pin = fields.String(required=True, metadata={"description": "4-6 digit PIN for quick login", "example": "1234"})
+    pin = fields.String(required=True, validate=[
+        validate.Length(min=4, max=6),
+        validate.Regexp(r"^\d{4,6}$", error="PIN must be 4-6 numeric digits"),
+    ], metadata={"description": "4-6 digit PIN for quick login", "example": "1234"})
 
 
 class CreateProfileRequestSchema(Schema):
     """POST /api/auth/create-profile"""
     name = fields.String(required=True, metadata={"description": "Staff name", "example": "Fatima Zohra"})
-    pin = fields.String(required=True, metadata={"description": "4-6 digit PIN", "example": "5678"})
+    pin = fields.String(required=True, validate=[
+        validate.Length(min=4, max=6),
+        validate.Regexp(r"^\d{4,6}$", error="PIN must be 4-6 numeric digits"),
+    ], metadata={"description": "4-6 digit PIN", "example": "5678"})
     role = fields.String(load_default="staff", metadata={"description": "Role: owner or staff", "example": "staff"})
     phone = fields.String(load_default=None, metadata={"description": "Phone number", "example": "+213555123456"})
     owner_pin = fields.String(load_default=None, metadata={"description": "Owner's PIN for authorization", "example": "1234"})
@@ -48,8 +57,14 @@ class CreateProfileRequestSchema(Schema):
 
 class ChangePinRequestSchema(Schema):
     """POST /api/auth/change-pin"""
-    old_pin = fields.String(required=True, metadata={"description": "Current PIN", "example": "1234"})
-    new_pin = fields.String(required=True, metadata={"description": "New PIN", "example": "5678"})
+    old_pin = fields.String(required=True, validate=[
+        validate.Length(min=4, max=6),
+        validate.Regexp(r"^\d{4,6}$", error="PIN must be 4-6 numeric digits"),
+    ], metadata={"description": "Current PIN", "example": "1234"})
+    new_pin = fields.String(required=True, validate=[
+        validate.Length(min=4, max=6),
+        validate.Regexp(r"^\d{4,6}$", error="PIN must be 4-6 numeric digits"),
+    ], metadata={"description": "New PIN", "example": "5678"})
 
 
 # ── Response Schemas ───────────────────────────────────────────────

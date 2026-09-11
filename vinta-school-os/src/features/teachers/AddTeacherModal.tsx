@@ -1,13 +1,16 @@
 /**
  * Vinta School OS — Add Teacher Modal
  * Modal form for creating a new teacher with
- * contact info, contract type, and rate.
+ * contact info, contract type, rate, and commission model.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { X, UserPlus, Phone, BookOpen, ChevronDown, Search } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
+import { toast } from '../../stores/uiStore'
+import type { CommissionType } from '../../types/teacher'
+import { COMMISSION_TYPE_LABELS } from '../../types/teacher'
 
 // ============================================
 // Types
@@ -26,6 +29,20 @@ const CONTRACT_LABELS = {
   hourly: 'Hourly',
   per_student: 'Per Student',
 } as const
+
+const COMMISSION_TYPES: CommissionType[] = ['PERCENTAGE', 'FLAT_HOURLY', 'FIXED_SESSION']
+
+const COMMISSION_SUFFIX: Record<CommissionType, string> = {
+  PERCENTAGE: '%',
+  FLAT_HOURLY: 'DA/h',
+  FIXED_SESSION: 'DA/session',
+}
+
+const COMMISSION_PLACEHOLDER: Record<CommissionType, string> = {
+  PERCENTAGE: '30',
+  FLAT_HOURLY: '1500',
+  FIXED_SESSION: '800',
+}
 
 // ============================================
 // Props
@@ -50,6 +67,10 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
   const [rate, setRate] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Commission model state
+  const [commissionType, setCommissionType] = useState<CommissionType>('PERCENTAGE')
+  const [commissionValue, setCommissionValue] = useState('')
 
   // Subjects from backend
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -112,6 +133,8 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
     setContractType('hourly')
     setRate('')
     setNotes('')
+    setCommissionType('PERCENTAGE')
+    setCommissionValue('')
   }, [])
 
   const handleClose = useCallback(() => {
@@ -120,7 +143,8 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
   }, [onClose, resetForm])
 
   const handleSubmit = useCallback(async () => {
-    if (!firstName.trim() || !lastName.trim()) return
+    if (!firstName.trim()) { toast.error('Name is required'); return }
+    if (!phone.trim()) { toast.error('Phone is required'); return }
     setIsSubmitting(true)
     try {
       const payload: Record<string, unknown> = {
@@ -138,12 +162,15 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
         payload.per_student_rate = rate ? Number(rate) : 0
       }
 
+      // Commission model fields
+      payload.commission_type = commissionType
+      payload.commission_value = commissionValue ? Number(commissionValue) : 0
+
       await api.post('/teachers', payload)
       resetForm()
       onAdded()
       onClose()
-    } catch (err) {
-      console.error('[AddTeacherModal] Failed to create teacher', err)
+    } catch {
       // Still close — optimistic fallback
       resetForm()
       onAdded()
@@ -151,7 +178,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
     } finally {
       setIsSubmitting(false)
     }
-  }, [firstName, lastName, phone, subject, contractType, rate, notes, resetForm, onAdded, onClose])
+  }, [firstName, lastName, phone, subject, contractType, rate, notes, commissionType, commissionValue, resetForm, onAdded, onClose])
 
   if (!isOpen) return null
 
@@ -360,6 +387,72 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
               </span>
             </div>
           </Field>
+
+          {/* ── Commission Model Section ──────── */}
+          <div className="pt-2 border-t border-[var(--glass-border)]">
+            <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">
+              Commission Model
+            </p>
+
+            {/* Commission Type Toggle — 3 options */}
+            <div className="flex gap-2 mb-3">
+              {COMMISSION_TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    setCommissionType(type)
+                    setCommissionValue('')
+                  }}
+                  className={cn(
+                    'flex-1 py-2 rounded-xl text-[11px] font-medium transition-all duration-150 leading-tight',
+                    commissionType === type
+                      ? 'bg-[var(--gold-soft)] text-[var(--gold)] border border-[var(--gold)]/30'
+                      : 'bg-[var(--input-bg)] text-[var(--muted)] border border-[var(--glass-border)] hover:border-[var(--muted)]/30',
+                  )}
+                >
+                  <span className="block">{COMMISSION_TYPE_LABELS[type]}</span>
+                  <span className={cn(
+                    'block text-[10px] mt-0.5',
+                    commissionType === type ? 'text-[var(--gold)]/70' : 'text-[var(--muted)]/60',
+                  )}>
+                    {type === 'PERCENTAGE' && '% of gross revenue'}
+                    {type === 'FLAT_HOURLY' && 'DA per hour'}
+                    {type === 'FIXED_SESSION' && 'Flat DA per session'}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Commission Value Input */}
+            <Field label="Commission Value">
+              <div className="relative">
+                <input
+                  type="number"
+                  value={commissionValue}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    if (commissionType === 'PERCENTAGE') {
+                      // Clamp 0–100 for percentage
+                      const num = Number(val)
+                      if (val === '' || (num >= 0 && num <= 100)) {
+                        setCommissionValue(val)
+                      }
+                    } else {
+                      setCommissionValue(val)
+                    }
+                  }}
+                  placeholder={COMMISSION_PLACEHOLDER[commissionType]}
+                  min={0}
+                  max={commissionType === 'PERCENTAGE' ? 100 : undefined}
+                  className={cn(inputCls, 'pr-20')}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--muted)]">
+                  {COMMISSION_SUFFIX[commissionType]}
+                </span>
+              </div>
+            </Field>
+          </div>
 
           {/* Notes */}
           <Field label="Notes">

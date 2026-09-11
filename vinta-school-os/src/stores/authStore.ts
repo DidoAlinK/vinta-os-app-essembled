@@ -240,7 +240,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       const response = await api.get('/auth/me')
-      const user = response.data as User
+      const raw = response.data
+      const user: User = {
+        id: raw.id,
+        academy_id: raw.academy_id,
+        name: raw.name,
+        email: raw.email,
+        phone: raw.phone,
+        role: raw.role,
+        picture: raw.picture ?? null,
+        avatar_color_1: raw.avatar_color_1,
+        avatar_color_2: raw.avatar_color_2,
+        is_active: raw.is_active ?? true,
+        created_at: raw.created_at ?? new Date().toISOString(),
+        updated_at: raw.updated_at ?? new Date().toISOString(),
+      }
 
       set({
         user,

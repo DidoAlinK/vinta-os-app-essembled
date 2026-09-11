@@ -21,6 +21,14 @@ export interface AcademySettings {
   default_language: 'fr' | 'ar' | 'en'
   created_at: string
   updated_at: string
+
+  // ── Owner-configurable money model (optional for back-compat) ──
+  default_credits_per_cycle?: number // 1-12
+  allow_rollover_default?: boolean
+  allow_makeups_default?: boolean
+  default_access_weeks?: number | null
+  default_max_groups?: number
+  default_commission_note?: string
 }
 
 // ============================================
@@ -99,6 +107,12 @@ export interface UpdateSettingsRequest {
   default_theme?: 'light' | 'dark'
   default_font_size?: 'normal' | 'large'
   default_language?: 'fr' | 'ar' | 'en'
+  default_credits_per_cycle?: number
+  allow_rollover_default?: boolean
+  allow_makeups_default?: boolean
+  default_access_weeks?: number | null
+  default_max_groups?: number
+  default_commission_note?: string
 }
 
 export interface AddStaffRequest {

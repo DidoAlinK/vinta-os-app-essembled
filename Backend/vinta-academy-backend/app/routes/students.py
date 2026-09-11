@@ -29,7 +29,8 @@ def list_students():
     """
     from flask import g
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 50, type=int)
+    from flask import current_app
+    per_page = min(request.args.get("per_page", 50, type=int), current_app.config.get("MAX_PAGE_SIZE", 100))
 
     result = student_service.list_students(g.current_academy_id, page, per_page)
     return jsonify(result), 200
@@ -80,15 +81,6 @@ def create_student():
             created_by=g.current_user.id,
         )
 
-        log_activity(
-            academy_id=g.current_academy_id,
-            user_id=g.current_user.id,
-            entity_type="student",
-            entity_id=student.id,
-            action="created",
-            description=f"Student {student.full_name} created",
-        )
-
         db.session.commit()
         return jsonify({
             "id": student.id,
@@ -96,9 +88,9 @@ def create_student():
             "last_name": student.last_name,
             "full_name": student.full_name,
         }), 201
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 
 @students_bp.route("/<student_id>", methods=["PUT"])
@@ -181,13 +173,13 @@ def list_guardians(student_id):
     return jsonify({
         "guardians": [
             {
-                "id": g.id,
-                "name": g.name,
-                "relationship": g.relationship_type,
-                "phone": g.phone,
-                "is_emergency": g.is_emergency,
+                "id": guard.id,
+                "name": guard.name,
+                "relationship": guard.relationship_type,
+                "phone": guard.phone,
+                "is_emergency": guard.is_emergency,
             }
-            for g in guardians
+            for guard in guardians
         ]
     }), 200
 

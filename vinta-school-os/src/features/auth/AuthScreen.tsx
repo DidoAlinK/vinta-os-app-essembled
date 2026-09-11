@@ -62,7 +62,7 @@ export default function AuthScreen() {
     try {
       await signup(signupAcademy, signupEmail, signupPassword, signupPin)
       toast.success('Account created! Welcome to Vinta School OS.')
-      navigate('/app/dashboard')
+      navigate('/profile-picker')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Signup failed'
       toast.error(message)

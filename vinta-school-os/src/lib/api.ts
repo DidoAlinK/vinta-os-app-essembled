@@ -9,6 +9,12 @@ import { API_BASE_URL, TOKEN_KEY, REFRESH_TOKEN_KEY, ACADEMY_ID_KEY } from './co
 // ============================================
 // Token Storage Helpers
 // ============================================
+// SECURITY NOTE: Storing JWTs in localStorage is vulnerable to XSS attacks.
+// Any script that runs on the page can read these tokens. The ideal solution
+// is httpOnly cookies set by the backend, which are inaccessible to JavaScript.
+// Until the backend supports httpOnly cookie-based auth, we accept this risk
+// and mitigate it with CSP headers and input sanitization elsewhere.
+// On logout, all tokens MUST be cleared via tokenStorage.clear().
 
 export const tokenStorage = {
   getAccessToken: (): string | null => {
@@ -121,7 +127,8 @@ api.interceptors.response.use(
       const isExpected401 =
         url.includes('/auth/verify-pin') ||
         url.includes('/auth/login') ||
-        url.includes('/auth/me')
+        url.includes('/auth/me') ||
+        url.includes('/auth/logout')
 
       if (!isExpected401) {
         const currentPath = window.location.pathname

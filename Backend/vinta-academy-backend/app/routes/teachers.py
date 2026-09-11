@@ -41,9 +41,11 @@ def list_teachers():
         from datetime import date, timedelta
         today = date.today()
         week_start = today - timedelta(days=today.weekday() + 1)
+        week_end = week_start + timedelta(days=6)
         week_sessions = Session.query.filter(
             Session.teacher_id == teacher.id,
             Session.date >= week_start,
+            Session.date <= week_end,
         ).count()
 
         result.append({
@@ -231,6 +233,10 @@ def delete_teacher(teacher_id):
     # Nullify teacher_id on classes (Class.teacher_id is nullable)
     from app.models.class_room import Class
     Class.query.filter_by(teacher_id=teacher_id).update({'teacher_id': None})
+
+    # Delete teacher hours logs referencing this teacher
+    from app.models.teacher import TeacherHoursLog
+    TeacherHoursLog.query.filter_by(teacher_id=teacher_id).delete()
 
     # Delete sessions referencing this teacher (Session.teacher_id is NOT NULL)
     from app.models.scheduling import Session

@@ -4,7 +4,7 @@ Enrollment, status derivation (paid/due/overdue), CRUD operations.
 """
 import uuid
 from datetime import date, timedelta
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from app.extensions import db
 from app.models.student import Student, Guardian, Enrollment
 from app.models.billing import StudentBilling, PaymentPlan
@@ -13,7 +13,7 @@ from app.models.audit import ActivityLog
 
 def list_students(academy_id: str, page: int = 1, per_page: int = 50) -> dict:
     """List all students for an academy with computed status fields."""
-    query = Student.query.filter_by(academy_id=academy_id)
+    query = Student.query.filter_by(academy_id=academy_id, is_active=True)
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
     students = []
@@ -25,13 +25,14 @@ def list_students(academy_id: str, page: int = 1, per_page: int = 50) -> dict:
         "students": students,
         "total": pagination.total,
         "page": page,
+        "per_page": per_page,
         "pages": pagination.pages,
     }
 
 
 def get_student(student_id: str, academy_id: str) -> dict | None:
     """Get a single student with all related data."""
-    student = Student.query.filter_by(id=student_id, academy_id=academy_id).first()
+    student = Student.query.filter_by(id=student_id, academy_id=academy_id, is_active=True).first()
     if not student:
         return None
 
@@ -99,7 +100,7 @@ def create_student(academy_id: str, data: dict, created_by: str) -> Student:
             payment_plan_id=default_plan.id,
             amount_da=0,
             status="paid",
-            due_date=today,
+            due_date=today + timedelta(days=default_plan.duration_days),
             paid_date=today,
             paid_amount=0,
             cycle_start=today,
@@ -148,6 +149,9 @@ def delete_student(student_id: str, academy_id: str, deleted_by: str) -> bool:
     for enrollment in enrollments:
         enrollment.status = "withdrawn"
 
+    # Soft delete: deactivate instead of removing
+    student.is_active = False
+
     # Audit log
     log = ActivityLog(
         id=str(uuid.uuid4()),
@@ -160,19 +164,36 @@ def delete_student(student_id: str, academy_id: str, deleted_by: str) -> bool:
     )
     db.session.add(log)
 
-    db.session.delete(student)
     db.session.flush()
     return True
 
 
 def enroll_student(student_id: str, class_id: str, academy_id: str, enrolled_by: str) -> Enrollment:
     """Enroll a student in a class."""
+    # Verify student exists and is active
+    student = Student.query.filter_by(id=student_id, academy_id=academy_id, is_active=True).first()
+    if not student:
+        raise ValueError("Student not found or inactive")
+
     # Check if already enrolled
     existing = Enrollment.query.filter_by(
         student_id=student_id, class_id=class_id, status="active"
     ).first()
     if existing:
         return existing
+
+    # Check class capacity
+    from app.models.class_room import Class
+    class_ = db.session.get(Class, class_id)
+    if not class_:
+        raise ValueError("Class not found")
+
+    enrolled_count = db.session.query(func.count()).select_from(Enrollment).filter(
+        Enrollment.class_id == class_id,
+        Enrollment.status == "active"
+    ).scalar()
+    if enrolled_count >= class_.capacity:
+        raise ValueError("Class is at full capacity")
 
     enrollment = Enrollment(
         id=str(uuid.uuid4()),
@@ -199,12 +220,12 @@ def enroll_student(student_id: str, class_id: str, academy_id: str, enrolled_by:
 
 def get_student_stats(academy_id: str) -> dict:
     """Get aggregate student statistics for the stats rail."""
-    total = Student.query.filter_by(academy_id=academy_id).count()
+    total = Student.query.filter_by(academy_id=academy_id, is_active=True).count()
 
     # Derive paid/overdue from latest billing
     paid = 0
     overdue = 0
-    students = Student.query.filter_by(academy_id=academy_id).all()
+    students = Student.query.filter_by(academy_id=academy_id, is_active=True).all()
     for student in students:
         latest_billing = (
             StudentBilling.query.filter_by(student_id=student.id)
@@ -256,6 +277,8 @@ def _enrich_student(student: Student) -> dict:
     enrollments = Enrollment.query.filter_by(student_id=student.id, status="active").all()
     classes_str = ", ".join([e.class_.name for e in enrollments if e.class_])
 
+    active_enrollment = next((e for e in enrollments if e.status == "active"), None)
+
     return {
         "id": student.id,
         "first_name": student.first_name,
@@ -270,6 +293,8 @@ def _enrich_student(student: Student) -> dict:
         "plan_amount": plan_amount,
         "renews": renews,
         "created_at": student.created_at.isoformat() if student.created_at else None,
+        "enrollment_status": active_enrollment.status if active_enrollment else "not_enrolled",
+        "billing_status": latest_billing.status if latest_billing else "no_plan",
     }
 
 

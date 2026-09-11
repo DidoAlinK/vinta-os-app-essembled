@@ -5,7 +5,8 @@ Classroom (physical room), Class (subject offering), Subject (extensible palette
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
-    String, Integer, Text, ForeignKey, DateTime,
+    String, Integer, Text, ForeignKey, DateTime, Boolean, Float,
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.extensions import db
@@ -59,6 +60,22 @@ class Class(db.Model):
     )
     capacity: Mapped[int] = mapped_column(Integer, default=0)
     notes: Mapped[str | None] = mapped_column(Text)
+    # ── VINTA SCHOOL OS billing extensions (unified "Class" entity) ──
+    academic_level: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    group_name: Mapped[str] = mapped_column(String(50), default="A", nullable=False)
+    billing_model: Mapped[str] = mapped_column(
+        SAEnum("CREDIT_BASED", "TIME_BASED", name="class_billing_model_enum"),
+        default="CREDIT_BASED", nullable=False,
+    )
+    price_da: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    credits_per_cycle: Mapped[int] = mapped_column(Integer, default=4, nullable=False)
+    cycle_week_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    allow_rollover: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    allow_makeups: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    access_duration_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_groups_included: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    enforce_attendance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    attendance_threshold: Mapped[float] = mapped_column(Float, default=0.75, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )

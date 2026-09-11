@@ -1,5 +1,6 @@
 """
 Settings schemas — Academy Config, Staff Management, Automations, Profile, Subscription.
+Backward compatible: legacy schemas untouched; billing-config extended with money-model defaults.
 """
 from marshmallow import Schema, fields
 
@@ -25,11 +26,16 @@ class UpdateAppearanceRequestSchema(Schema):
 
 class UpdateBillingConfigRequestSchema(Schema):
     """PUT /api/settings/billing-config"""
-    currency = fields.String(metadata={"description": "Currency code", "example": "DZD"})
+    currency = fields.String(metadata={"description": "Currency code (locked to DZD on write)", "example": "DZD"})
     default_plan_duration = fields.Integer(metadata={"description": "Default plan duration in days", "example": 30})
     billing_reminder_days_before = fields.Integer(metadata={"description": "Reminder days before due", "example": 3})
     due_date_reminder_timing = fields.String(metadata={"description": "Reminder time", "example": "09:00"})
     whatsapp_template = fields.String(metadata={"description": "WhatsApp message template"})
+    default_credits_per_cycle = fields.Integer(metadata={"description": "Default credits per cycle", "example": 8})
+    allow_rollover_default = fields.Boolean(metadata={"description": "Unused credits roll over by default"})
+    allow_makeups_default = fields.Boolean(metadata={"description": "Makeup sessions allowed by default"})
+    default_access_weeks = fields.Integer(metadata={"description": "Default access window in weeks", "example": 4})
+    default_max_groups = fields.Integer(metadata={"description": "Default max groups included", "example": 1})
 
 
 class UpdateAutomationsRequestSchema(Schema):
@@ -88,6 +94,11 @@ class BillingConfigResponseSchema(Schema):
     billing_reminder_days_before = fields.Integer(metadata={"description": "Reminder days before due"})
     due_date_reminder_timing = fields.String(metadata={"description": "Reminder time"})
     whatsapp_template = fields.String(metadata={"description": "WhatsApp message template"})
+    default_credits_per_cycle = fields.Integer(metadata={"description": "Default credits per cycle"})
+    allow_rollover_default = fields.Boolean(metadata={"description": "Rollover default"})
+    allow_makeups_default = fields.Boolean(metadata={"description": "Makeups default"})
+    default_access_weeks = fields.Integer(metadata={"description": "Default access window in weeks"})
+    default_max_groups = fields.Integer(metadata={"description": "Default max groups included"})
 
 
 class AutomationsResponseSchema(Schema):

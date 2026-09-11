@@ -219,15 +219,14 @@ def get_teacher_summary(teacher_id: str, academy_id: str) -> dict:
     # Active students count (for per-student contracts)
     active_students = 0
     if teacher.contract_type == "per_student":
-        active_students = (
-            db.session.query(func.count(func.distinct(Enrollment.student_id)))
-            .join(Student, Enrollment.student_id == Student.id)
-            .filter(
-                Student.academy_id == academy_id,
-                Enrollment.status == "active",
-            )
-            .scalar() or 0
-        )
+        teacher_class_ids = db.session.query(Session.class_id).filter(
+            Session.teacher_id == teacher_id
+        ).distinct().subquery()
+
+        active_students = db.session.query(func.count()).select_from(Enrollment).filter(
+            Enrollment.class_id.in_(db.session.query(teacher_class_ids)),
+            Enrollment.status == "active",
+        ).scalar() or 0
 
     return {
         "teacher_id": teacher_id,
@@ -242,4 +241,94 @@ def get_teacher_summary(teacher_id: str, academy_id: str) -> dict:
         },
         "hours_this_week": float(week_hours),
         "active_students": active_students,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# VINTA SCHOOL OS — Session Payout Helpers (money model)
+# Thin wrappers over billing_service.finalize_session / PayoutRecord
+# queries. Legacy TeacherPayroll functions above are untouched.
+# Owner PIN verification happens at the route layer; staff attribution
+# flows through recorded_by_staff_id / paid_by_staff_id params.
+# All money is integer DZD.
+# ═══════════════════════════════════════════════════════════════════
+
+def calculate_payout_for_session(
+    session_id: str, academy_id: str, staff_id: str,
+    conducted: bool = True,
+) -> dict:
+    """Compute (or re-fetch) the payout for a session.
+
+    Delegates to ``billing_service.finalize_session``: conducted sessions
+    yield a PENDING ``PayoutRecord`` with gross/cut snapshots; cancelled
+    sessions yield no payout. Idempotent — re-running returns the stored
+    payout instead of duplicating it.
+    """
+    from app.services import billing_service as _billing
+
+    return _billing.finalize_session(
+        session_id=session_id,
+        conducted=conducted,
+        academy_id=academy_id,
+        staff_id=staff_id,
+    )
+
+
+def list_payouts(
+    academy_id: str, teacher_id: str = None, status: str = None,
+) -> list:
+    """List session payout records (delegates to billing_service)."""
+    from app.services import billing_service as _billing
+
+    return _billing.list_payouts(academy_id, teacher_id, status)
+
+
+def mark_paid(payout_id: str, academy_id: str, staff_id: str) -> dict | None:
+    """Mark a payout PAID (delegates to billing_service.mark_payout_paid).
+
+    Owner PIN is verified at the route layer; ``staff_id`` records who
+    performed the payout (stored on ``paid_by_staff_id``).
+    """
+    from app.services import billing_service as _billing
+
+    return _billing.mark_payout_paid(payout_id, academy_id, staff_id)
+
+
+def get_teacher_payout_dashboard(teacher_id: str, academy_id: str) -> dict | None:
+    """Teacher dashboard totals: gross vs cut, pending vs paid.
+
+    Aggregates ``PayoutRecord`` rows (session money model) alongside the
+    legacy monthly ``TeacherPayroll`` summary from
+    :func:`get_teacher_summary`.
+    """
+    teacher = db.session.get(Teacher, teacher_id)
+    if not teacher or teacher.academy_id != academy_id:
+        return None
+
+    from app.models.billing import PayoutRecord
+
+    payouts = PayoutRecord.query.filter_by(
+        teacher_id=teacher_id, academy_id=academy_id
+    ).all()
+
+    gross_total = sum(int(p.gross_revenue_da or 0) for p in payouts)
+    cut_total = sum(int(p.teacher_cut_da or 0) for p in payouts)
+    pending = [p for p in payouts if p.status == "PENDING"]
+    paid = [p for p in payouts if p.status == "PAID"]
+    pending_total = sum(int(p.teacher_cut_da or 0) for p in pending)
+    paid_total = sum(int(p.teacher_cut_da or 0) for p in paid)
+
+    legacy = get_teacher_summary(teacher_id, academy_id) or {}
+
+    return {
+        "teacher_id": teacher_id,
+        "teacher_name": teacher.full_name,
+        "gross_revenue_da": gross_total,
+        "teacher_cut_da": cut_total,
+        "pending_da": pending_total,
+        "paid_da": paid_total,
+        "pending_count": len(pending),
+        "paid_count": len(paid),
+        "session_count": len(payouts),
+        "legacy_payroll": legacy.get("current_payroll"),
     }

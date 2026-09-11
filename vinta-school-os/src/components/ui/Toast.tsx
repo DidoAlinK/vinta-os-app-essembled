@@ -13,6 +13,7 @@ interface Toast {
   id: string
   message: string
   type: 'success' | 'error' | 'info'
+  duration?: number
 }
 
 interface ToastContextValue {
@@ -44,11 +45,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // Auto-dismiss
   useEffect(() => {
     if (toasts.length === 0) return
-    const timer = setTimeout(() => {
-      setToasts(prev => prev.slice(1))
-    }, 4000)
+    const latest = toasts[toasts.length - 1]
+    if (latest.duration === 0) return // permanent toast
+    const timer = setTimeout(() => dismiss(latest.id), latest.duration || 4000)
     return () => clearTimeout(timer)
-  }, [toasts])
+  }, [toasts, dismiss])
 
   const icons: Record<Toast['type'], React.ReactNode> = {
     success: <CheckCircle size={16} className="text-[var(--emerald)]" />,

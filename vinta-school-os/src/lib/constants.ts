@@ -34,7 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'students', label: 'Students', icon: 'students' },
   { key: 'teachers', label: 'Teachers', icon: 'teachers' },
-  { key: 'classes', label: 'Classes', icon: 'classes' },
+  { key: 'classes', label: 'Classrooms', icon: 'classes' },
   { key: 'calendar', label: 'Calendar', icon: 'calendar' },
   { key: 'billing', label: 'Billing', icon: 'billing' },
   { key: 'settings', label: 'Settings', icon: 'settings' },

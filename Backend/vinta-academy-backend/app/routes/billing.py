@@ -6,7 +6,7 @@ from flask_smorest import Blueprint
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required
 from app.extensions import db
-from app.utils.decorators import tenant_required
+from app.utils.decorators import tenant_required, owner_only, verify_staff_pin
 from app.utils.audit import log_activity
 from app.services import billing_service
 from app.schemas.billing import (
@@ -157,6 +157,7 @@ def get_aging_buckets():
 @billing_bp.route("/check-overdue", methods=["POST"])
 @jwt_required()
 @tenant_required
+@owner_only
 def check_overdue():
     """Trigger overdue status checks. Called by cron job."""
     from flask import g
@@ -168,6 +169,7 @@ def check_overdue():
 @billing_bp.route("/renew-cycles", methods=["POST"])
 @jwt_required()
 @tenant_required
+@owner_only
 def renew_cycles():
     """Trigger billing cycle renewals. Called by cron job."""
     from flask import g
@@ -208,3 +210,204 @@ def settle_payroll(payroll_id):
 
     db.session.commit()
     return jsonify({"message": "Payroll settled"}), 200
+
+
+# ═══════════════════════════════════════════════════════════════════
+# VINTA SCHOOL OS — Money Model Endpoints
+# Subscriptions, multi-pay, payouts, revenue, session finalization
+# ═══════════════════════════════════════════════════════════════════
+
+from app.utils.decorators import verify_staff_pin
+
+
+@billing_bp.route("/subscriptions", methods=["GET"])
+@jwt_required()
+@tenant_required
+def list_subscriptions():
+    """
+    List student subscriptions.
+    Query params: student_id, group_id, status
+    """
+    from flask import g
+    student_id = request.args.get("student_id")
+    group_id = request.args.get("group_id")
+    status = request.args.get("status")
+
+    subs = billing_service.list_subscriptions(
+        g.current_academy_id, student_id, group_id, status
+    )
+    return jsonify({"subscriptions": subs}), 200
+
+
+@billing_bp.route("/subscriptions/pay", methods=["POST"])
+@jwt_required()
+@tenant_required
+@verify_staff_pin
+def pay_subscription():
+    """
+    Multi-teacher subscription payment.
+    Body: { student_id, items: [{group_id, amount}], payment_method, pin }
+    PIN verified by @verify_staff_pin decorator.
+    """
+    from flask import g
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    required = ("student_id", "items")
+    missing = [f for f in required if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+    items = data.get("items", [])
+    if not items:
+        return jsonify({"error": "At least one payment item is required"}), 400
+
+    total_received = sum(i.get("amount", 0) for i in items)
+    method = data.get("payment_method", "CASH")
+
+    receipt = billing_service.create_multi_payment(
+        academy_id=g.current_academy_id,
+        student_id=data["student_id"],
+        items=items,
+        total_received=total_received,
+        method=method,
+        staff_id=g.current_user.id,
+    )
+
+    if not receipt:
+        return jsonify({"error": "Payment failed"}), 400
+
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="subscription",
+        entity_id=data["student_id"],
+        action="payment_received",
+        description=f"Multi-payment of {total_received} Da received",
+        metadata={"amount": total_received, "method": method, "groups": len(items)},
+    )
+
+    db.session.commit()
+    return jsonify(receipt), 201
+
+
+@billing_bp.route("/subscriptions/<subscription_id>/renew", methods=["POST"])
+@jwt_required()
+@tenant_required
+def renew_subscription(subscription_id):
+    """
+    Renew an expired/depleted subscription.
+    Body: { pin } (optional)
+    """
+    from flask import g
+    result = billing_service.renew_subscription(subscription_id, g.current_academy_id)
+    if not result:
+        return jsonify({"error": "Subscription not found"}), 404
+    db.session.commit()
+    return jsonify(result), 200
+
+
+# ── Payouts (Teacher Dashboard) ────────────────────────────────────
+
+@billing_bp.route("/payouts", methods=["GET"])
+@jwt_required()
+@tenant_required
+def list_payouts():
+    """
+    List teacher payout records.
+    Query params: teacher_id, status
+    """
+    from flask import g
+    teacher_id = request.args.get("teacher_id")
+    status = request.args.get("status")
+    payouts = billing_service.list_payouts(
+        g.current_academy_id, teacher_id, status
+    )
+    return jsonify({"payouts": payouts}), 200
+
+
+@billing_bp.route("/payouts/<payout_id>/mark-paid", methods=["POST"])
+@jwt_required()
+@tenant_required
+@owner_only
+def mark_payout_paid(payout_id):
+    """
+    Mark a payout as PAID (owner-only).
+    Body: { pin } — owner PIN verified.
+    """
+    from flask import g
+    data = request.get_json() or {}
+    pin = data.get("pin")
+    if not pin or not g.current_user.verify_pin(pin):
+        return jsonify({"error": "Owner PIN is required"}), 401
+
+    result = billing_service.mark_payout_paid(
+        payout_id, g.current_academy_id, g.current_user.id
+    )
+    if not result:
+        return jsonify({"error": "Payout record not found"}), 404
+
+    db.session.commit()
+    return jsonify(result), 200
+
+
+# ── Revenue ────────────────────────────────────────────────────────
+
+@billing_bp.route("/revenue", methods=["GET"])
+@jwt_required()
+@tenant_required
+def get_revenue():
+    """
+    Get revenue totals.
+    Query params: group_id, session_id
+    """
+    from flask import g
+    group_id = request.args.get("group_id")
+    session_id = request.args.get("session_id")
+    result = billing_service.get_revenue(
+        g.current_academy_id, group_id, session_id
+    )
+    return jsonify(result), 200
+
+
+# ── Session Finalization ───────────────────────────────────────────
+
+@billing_bp.route("/sessions/<session_id>/finalize", methods=["POST"])
+@jwt_required()
+@tenant_required
+@verify_staff_pin
+def finalize_session(session_id):
+    """
+    "Is the class done?" flow.
+    Body: { conducted: bool, pin }
+    PIN verified by @verify_staff_pin.
+    Yes → session becomes CONDUCTED, teacher payout computed.
+    No → session becomes CANCELLED, no payout.
+    """
+    from flask import g
+    data = request.get_json() or {}
+    conducted = data.get("conducted", False)
+
+    result = billing_service.finalize_session(
+        session_id=session_id,
+        conducted=conducted,
+        academy_id=g.current_academy_id,
+        staff_id=g.current_user.id,
+    )
+
+    if not result or "error" in result:
+        return jsonify(result or {"error": "Session not found"}), 404
+
+    log_activity(
+        academy_id=g.current_academy_id,
+        user_id=g.current_user.id,
+        entity_type="session",
+        entity_id=session_id,
+        action="session_finalized",
+        description=f"Session {'conducted' if conducted else 'cancelled'}",
+        metadata={"conducted": conducted},
+    )
+
+    db.session.commit()
+    return jsonify(result), 200

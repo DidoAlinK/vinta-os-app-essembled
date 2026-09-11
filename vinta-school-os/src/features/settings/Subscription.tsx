@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { cn } from '../../lib/cn'
+import api from '../../lib/api'
 import { Card, CardHeader, CardBody } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Crown } from 'lucide-react'
@@ -29,7 +31,12 @@ const TIERS = [
 /* ─── Component ─── */
 
 export function Subscription() {
-  const currentTier = 'starter' // TODO: from API
+  const [currentTier, setCurrentTier] = useState('starter')
+  useEffect(() => {
+    api.get('/settings/subscription').then(res => {
+      setCurrentTier(res.data.tier || 'starter')
+    }).catch(() => {}) // ignore - default to starter
+  }, [])
 
   return (
     <div className="flex flex-col gap-5 max-w-xl">

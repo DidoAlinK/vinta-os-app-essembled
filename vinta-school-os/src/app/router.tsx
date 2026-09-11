@@ -233,6 +233,9 @@ const router = createBrowserRouter([
           { path: 'students', element: <StudentsPage /> },
           { path: 'teachers', element: <TeachersPage /> },
           { path: 'classes', element: <ClassesPage /> },
+          // Alias: the "Classes" section is Classrooms — keep 'classes'
+          // for route compat, add 'classrooms' rendering the same page.
+          { path: 'classrooms', element: <ClassesPage /> },
           { path: 'calendar', element: <CalendarPage /> },
           { path: 'billing', element: <BillingPage /> },
           { path: 'settings', element: <SettingsPage /> },

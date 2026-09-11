@@ -31,7 +31,10 @@ def get_week():
     from flask import g
     date_str = request.args.get("date")
     if date_str:
-        target = date.fromisoformat(date_str)
+        try:
+            target = date.fromisoformat(date_str)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
     else:
         target = date.today()
 
@@ -55,7 +58,13 @@ def get_day():
     """
     from flask import g
     date_str = request.args.get("date")
-    target = date.fromisoformat(date_str) if date_str else date.today()
+    if date_str:
+        try:
+            target = date.fromisoformat(date_str)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+    else:
+        target = date.today()
 
     sessions = scheduling_service.get_day_sessions(g.current_academy_id, target)
     return jsonify({
@@ -89,15 +98,6 @@ def create_session():
             created_by=g.current_user.id,
         )
 
-        log_activity(
-            academy_id=g.current_academy_id,
-            user_id=g.current_user.id,
-            entity_type="session",
-            entity_id=session.id,
-            action="created",
-            description=f"Session created for {session.date.isoformat()} at {session.start_time.strftime('%H:%M')}",
-        )
-
         db.session.commit()
 
         return jsonify({
@@ -109,8 +109,8 @@ def create_session():
             "subject": session.subject,
             "status": session.status,
         }), 201
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+    except ValueError:
+        return jsonify({"error": "Invalid session data"}), 400
 
 
 @calendar_bp.route("/sessions/<session_id>", methods=["PATCH"])

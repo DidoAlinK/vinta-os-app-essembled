@@ -1,6 +1,8 @@
 """
 Vinta School OS — Classes Blueprint
 /api/classes, /api/classrooms — Class & Classroom CRUD, Schedules
+CourseGroup money-model fields are accepted on create/update and returned
+in list/get. Backward compatible: all new fields optional.
 """
 import uuid
 from flask_smorest import Blueprint
@@ -21,6 +23,56 @@ from app.schemas.classes import (
 from app.schemas.base import ErrorSchema, MessageSchema
 
 classes_bp = Blueprint("classes", __name__, description="Classes, classrooms & recurring schedules")
+
+
+# ── CourseGroup / money-model helpers ───────────────────────────────
+
+GROUP_FIELDS = (
+    "academic_level", "group_name", "billing_model", "price_da",
+    "credits_per_cycle", "cycle_week_limit", "allow_rollover",
+    "allow_makeups", "access_duration_weeks", "max_groups_included",
+    "enforce_attendance", "attendance_threshold",
+)
+
+# Friendly aliases accepted for billing_model (DB enum is CREDIT_BASED/TIME_BASED)
+BILLING_MODEL_ALIASES = {
+    "per_cycle": "CREDIT_BASED",
+    "credit_based": "CREDIT_BASED",
+    "credit-based": "CREDIT_BASED",
+    "per_access": "TIME_BASED",
+    "per_month": "TIME_BASED",
+    "unlimited": "TIME_BASED",
+    "time_based": "TIME_BASED",
+    "time-based": "TIME_BASED",
+}
+
+
+def _normalize_billing_model(value):
+    """Map friendly billing-model names to the DB enum values."""
+    if value is None:
+        return None
+    key = str(value).strip().lower()
+    if key in BILLING_MODEL_ALIASES:
+        return BILLING_MODEL_ALIASES[key]
+    return str(value).strip().upper()
+
+
+def _group_payload(cls):
+    """Serialize the CourseGroup money-model fields of a Class."""
+    return {f: getattr(cls, f, None) for f in GROUP_FIELDS}
+
+
+def _apply_group_fields(cls, data):
+    """Apply any CourseGroup fields present in data. Returns applied names."""
+    applied = []
+    for field in GROUP_FIELDS:
+        if field in data:
+            value = data[field]
+            if field == "billing_model":
+                value = _normalize_billing_model(value)
+            setattr(cls, field, value)
+            applied.append(field)
+    return applied
 
 
 # ── Classrooms ──────────────────────────────────────────────────────
@@ -61,6 +113,49 @@ def create_classroom():
     return jsonify({"id": room.id, "name": room.name, "capacity": room.capacity}), 201
 
 
+@classes_bp.route("/classrooms/<room_id>", methods=["PUT"])
+@jwt_required()
+@tenant_required
+def update_classroom(room_id):
+    """Update a classroom. Body: { name?, capacity? }"""
+    from flask import g
+    room = Classroom.query.filter_by(id=room_id, academy_id=g.current_academy_id).first()
+    if not room:
+        return jsonify({"error": "Classroom not found"}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    for field in ("name", "capacity"):
+        if field in data:
+            setattr(room, field, data[field])
+
+    db.session.commit()
+    return jsonify({"id": room.id, "name": room.name, "capacity": room.capacity}), 200
+
+
+@classes_bp.route("/classrooms/<room_id>", methods=["DELETE"])
+@jwt_required()
+@tenant_required
+def delete_classroom(room_id):
+    """Delete a classroom; schedules/sessions referencing it are unlinked."""
+    from flask import g
+    from app.models.scheduling import Session
+
+    room = Classroom.query.filter_by(id=room_id, academy_id=g.current_academy_id).first()
+    if not room:
+        return jsonify({"error": "Classroom not found"}), 404
+
+    # Unlink (both FKs are nullable) so front desk can manage rooms freely
+    Schedule.query.filter_by(classroom_id=room.id).update({"classroom_id": None})
+    Session.query.filter_by(classroom_id=room.id).update({"classroom_id": None})
+
+    db.session.delete(room)
+    db.session.commit()
+    return jsonify({"message": "Classroom deleted"}), 200
+
+
 # ── Classes ─────────────────────────────────────────────────────────
 
 @classes_bp.route("/classes", methods=["GET"])
@@ -87,7 +182,7 @@ def list_classes():
         else:
             status_color = "grey"
 
-        result.append({
+        entry = {
             "id": cls.id,
             "name": cls.name,
             "subject": cls.subject,
@@ -98,7 +193,9 @@ def list_classes():
             "enrolled_count": enrolled_count,
             "status_color": status_color,
             "notes": cls.notes,
-        })
+        }
+        entry.update(_group_payload(cls))
+        result.append(entry)
 
     return jsonify({"classes": result}), 200
 
@@ -132,7 +229,7 @@ def get_class(class_id):
         for s in schedules
     ]
 
-    return jsonify({
+    payload = {
         "id": cls.id,
         "name": cls.name,
         "subject": cls.subject,
@@ -143,7 +240,9 @@ def get_class(class_id):
         "enrolled_count": enrolled_count,
         "notes": cls.notes,
         "schedules": schedule_data,
-    }), 200
+    }
+    payload.update(_group_payload(cls))
+    return jsonify(payload), 200
 
 
 @classes_bp.route("/classes", methods=["POST"])
@@ -152,7 +251,11 @@ def get_class(class_id):
 def create_class():
     """
     Create a new class.
-    Body: { name, subject?, color?, teacher_id?, capacity?, notes? }
+    Body: { name, subject?, color?, teacher_id?, capacity?, notes?,
+            academic_level?, group_name?, billing_model?, price_da?,
+            credits_per_cycle?, cycle_week_limit?, allow_rollover?,
+            allow_makeups?, access_duration_weeks?, max_groups_included?,
+            enforce_attendance?, attendance_threshold? }
     """
     from flask import g
     data = request.get_json()
@@ -169,6 +272,7 @@ def create_class():
         capacity=data.get("capacity", 30),
         notes=data.get("notes"),
     )
+    _apply_group_fields(cls, data)
     db.session.add(cls)
 
     log_activity(
@@ -193,7 +297,7 @@ def create_class():
 @jwt_required()
 @tenant_required
 def update_class(class_id):
-    """Update class fields."""
+    """Update class fields (legacy + CourseGroup money-model fields)."""
     from flask import g
 
     cls = Class.query.filter_by(id=class_id, academy_id=g.current_academy_id).first()
@@ -204,9 +308,11 @@ def update_class(class_id):
     if not data:
         return jsonify({"error": "Request body is required"}), 400
 
-    for field in ("name", "subject", "color", "teacher_id", "capacity", "notes"):
+    LEGACY_FIELDS = ("name", "subject", "color", "teacher_id", "capacity", "notes")
+    for field in LEGACY_FIELDS:
         if field in data:
             setattr(cls, field, data[field])
+    _apply_group_fields(cls, data)
 
     log_activity(
         academy_id=g.current_academy_id,
@@ -215,7 +321,7 @@ def update_class(class_id):
         entity_id=cls.id,
         action="updated",
         description=f"Class {cls.name} updated",
-        metadata={"fields": [f for f in ("name", "subject", "color", "teacher_id", "capacity", "notes") if f in data]},
+        metadata={"fields": [f for f in (*LEGACY_FIELDS, *GROUP_FIELDS) if f in data]},
     )
 
     db.session.commit()
@@ -226,13 +332,19 @@ def update_class(class_id):
 @jwt_required()
 @tenant_required
 def delete_class(class_id):
-    """Delete class, cascade delete schedules, withdraw enrollments."""
+    """Delete class, cancel sessions, withdraw enrollments."""
     from flask import g
     from app.models.student import Enrollment
 
     cls = Class.query.filter_by(id=class_id, academy_id=g.current_academy_id).first()
     if not cls:
         return jsonify({"error": "Class not found"}), 404
+
+    # Cancel all sessions for this class
+    from app.models.scheduling import Session
+    sessions = Session.query.filter_by(class_id=cls.id).all()
+    for s in sessions:
+        s.status = "cancelled"
 
     # Withdraw all enrollments
     enrollments = Enrollment.query.filter_by(class_id=class_id, status="active").all()
@@ -251,6 +363,169 @@ def delete_class(class_id):
     db.session.delete(cls)
     db.session.commit()
     return jsonify({"message": "Class deleted"}), 200
+
+
+# ── Enrollment transfer & group subscriptions ─────────────────────────
+
+def _transfer_enrollment(enrollment_id, new_group_id, academy_id, performed_by):
+    """Move an enrollment to another group. Returns (payload, status_code)."""
+    from app.models.student import Enrollment
+
+    enrollment = Enrollment.query.filter_by(id=enrollment_id).first()
+    if not enrollment:
+        return {"error": "Enrollment not found"}, 404
+
+    student = enrollment.student
+    if not student or student.academy_id != academy_id:
+        return {"error": "Enrollment not found"}, 404
+
+    new_cls = Class.query.filter_by(id=new_group_id, academy_id=academy_id).first()
+    if not new_cls:
+        return {"error": "Destination group not found"}, 404
+
+    if enrollment.class_id == new_group_id and enrollment.status == "active":
+        return {
+            "id": enrollment.id,
+            "student_id": enrollment.student_id,
+            "class_id": enrollment.class_id,
+            "status": enrollment.status,
+        }, 200
+
+    # Capacity guard on the destination group
+    enrolled_count = Enrollment.query.filter_by(
+        class_id=new_group_id, status="active"
+    ).count()
+    if new_cls.capacity and enrolled_count >= new_cls.capacity:
+        return {"error": "Destination group is at full capacity"}, 409
+
+    old_group_id = enrollment.class_id
+    enrollment.status = "transferred"
+    new_enrollment = Enrollment(
+        id=str(uuid.uuid4()),
+        student_id=enrollment.student_id,
+        class_id=new_group_id,
+        status="active",
+    )
+    db.session.add(new_enrollment)
+    db.session.flush()
+
+    # Keep billing coherent: same-level subscriptions follow the move and
+    # stay ACTIVE; cross-level moves flag that a new payment is required.
+    from app.services.billing_service import repoint_subscriptions_for_transfer
+    billing_move = repoint_subscriptions_for_transfer(
+        enrollment.student_id, old_group_id, new_group_id
+    )
+
+    log_activity(
+        academy_id=academy_id,
+        user_id=performed_by,
+        entity_type="enrollment",
+        entity_id=enrollment.id,
+        action="updated",
+        description=f"Enrollment transferred to group {new_cls.name}",
+        metadata={"from_group": old_group_id, "to_group": new_group_id},
+    )
+    db.session.commit()
+
+    return {
+        "id": new_enrollment.id,
+        "student_id": new_enrollment.student_id,
+        "class_id": new_enrollment.class_id,
+        "status": new_enrollment.status,
+        "previous_enrollment_id": enrollment.id,
+        "same_level": billing_move.get("same_level"),
+        "requires_new_payment": billing_move.get("requires_new_payment"),
+        "moved_subscriptions": billing_move.get("moved_subscriptions", []),
+    }, 201
+
+
+@classes_bp.route("/enrollments/<enrollment_id>/transfer", methods=["PUT"])
+@jwt_required()
+@tenant_required
+def transfer_enrollment_by_id(enrollment_id):
+    """
+    Transfer an enrollment to another group.
+    Body: { new_group_id } (alias: new_class_id)
+    """
+    from flask import g
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    new_group_id = data.get("new_group_id") or data.get("new_class_id")
+    if not new_group_id:
+        return jsonify({"error": "new_group_id is required"}), 400
+
+    payload, code = _transfer_enrollment(
+        enrollment_id, new_group_id, g.current_academy_id, g.current_user.id
+    )
+    return jsonify(payload), code
+
+
+@classes_bp.route("/classes/<class_id>/transfer-enrollment", methods=["POST"])
+@jwt_required()
+@tenant_required
+def transfer_enrollment_from_class(class_id):
+    """
+    Transfer an enrollment out of this class.
+    Body: { enrollment_id, new_group_id } (alias: new_class_id)
+    """
+    from flask import g
+    from app.models.student import Enrollment
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    enrollment_id = data.get("enrollment_id")
+    new_group_id = data.get("new_group_id") or data.get("new_class_id")
+    if not enrollment_id or not new_group_id:
+        return jsonify({"error": "enrollment_id and new_group_id are required"}), 400
+
+    enrollment = Enrollment.query.filter_by(id=enrollment_id).first()
+    if not enrollment or enrollment.class_id != class_id:
+        return jsonify({"error": "Enrollment not found in this class"}), 404
+
+    payload, code = _transfer_enrollment(
+        enrollment_id, new_group_id, g.current_academy_id, g.current_user.id
+    )
+    return jsonify(payload), code
+
+
+@classes_bp.route("/classes/<class_id>/subscriptions", methods=["GET"])
+@jwt_required()
+@tenant_required
+def list_group_subscriptions(class_id):
+    """List active subscriptions for a group (class)."""
+    from flask import g
+    from app.models.billing import StudentSubscription
+    from app.models.student import Student
+
+    cls = Class.query.filter_by(id=class_id, academy_id=g.current_academy_id).first()
+    if not cls:
+        return jsonify({"error": "Class not found"}), 404
+
+    subs = StudentSubscription.query.filter_by(
+        group_id=class_id, status="ACTIVE"
+    ).all()
+
+    result = []
+    for sub in subs:
+        student = db.session.get(Student, sub.student_id)
+        result.append({
+            "id": sub.id,
+            "student_id": sub.student_id,
+            "student_name": f"{student.first_name} {student.last_name}" if student else None,
+            "group_id": sub.group_id,
+            "billing_model": sub.billing_model,
+            "amount_da": int(sub.amount_paid_da or 0),
+            "remaining_credits": sub.remaining_credits,
+            "total_credits": sub.total_credits,
+            "access_end": sub.access_end_date.isoformat() if sub.access_end_date else None,
+            "status": sub.status,
+        })
+
+    return jsonify({"subscriptions": result}), 200
 
 
 # ── Schedules (within a class) ──────────────────────────────────────
@@ -315,6 +590,10 @@ def delete_schedule(class_id, schedule_id):
     ).first()
     if not schedule:
         return jsonify({"error": "Schedule not found"}), 404
+
+    # Delete associated sessions first
+    from app.models.scheduling import Session
+    Session.query.filter_by(schedule_id=schedule.id).delete()
 
     db.session.delete(schedule)
     db.session.commit()

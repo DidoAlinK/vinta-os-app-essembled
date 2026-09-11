@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
 import { toast } from '../../stores/uiStore'
+import { useAuthStore } from '../../stores/authStore'
 import type { Academy, AcademySettings, StaffMember } from '../../types/settings'
 import Appearance from './Appearance'
 import MyAccount from './MyAccount'
@@ -57,8 +58,8 @@ export function SettingsPage() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [showAddStaff, setShowAddStaff] = useState(false)
 
-  // TODO: Replace with auth store user role
-  const userRole: 'owner' | 'staff' = 'owner'
+  // User role from auth store
+  const userRole = useAuthStore(s => s.user?.role ?? 'staff') as 'owner' | 'staff'
 
   const visibleSections = SECTIONS.filter((s) => s.roles.includes(userRole))
 
@@ -93,8 +94,9 @@ export function SettingsPage() {
   /* ── Handlers ── */
   const handleUpdateAcademy = async (data: Partial<Academy>) => {
     try {
-      const { data: updated } = await api.put('/settings/academy', data)
-      setAcademy(updated)
+      await api.put('/settings/academy', data)
+      // Backend returns {message} only — merge updates into local state
+      setAcademy(prev => prev ? { ...prev, ...data } : prev)
       toast.success('Academy profile updated')
     } catch {
       toast.error('Failed to save. Please try again.')
@@ -103,8 +105,9 @@ export function SettingsPage() {
 
   const handleUpdateSettings = async (data: Partial<AcademySettings>) => {
     try {
-      const { data: updated } = await api.put('/settings/appearance', data)
-      setSettings(updated)
+      await api.put('/settings/appearance', data)
+      // Backend returns {message} only — merge updates into local state
+      setSettings(prev => prev ? { ...prev, ...data } : prev)
       toast.success('Settings updated')
     } catch {
       toast.error('Failed to save. Please try again.')

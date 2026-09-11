@@ -65,6 +65,11 @@ class AcademySettings(db.Model):
         String(36), ForeignKey("academies.id"), unique=True, nullable=False
     )
     currency: Mapped[str] = mapped_column(String(10), default="DZD")
+    default_credits_per_cycle: Mapped[int] = mapped_column(Integer, default=4)
+    allow_rollover_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    allow_makeups_default: Mapped[bool] = mapped_column(Boolean, default=True)
+    default_access_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    default_max_groups: Mapped[int] = mapped_column(Integer, default=1)
     default_plan_duration: Mapped[int] = mapped_column(Integer, default=30)
     billing_reminder_days_before: Mapped[int] = mapped_column(Integer, default=3)
     due_date_reminder_timing: Mapped[str] = mapped_column(
@@ -77,7 +82,7 @@ class AcademySettings(db.Model):
         SAEnum("light", "dark", name="theme_enum"), default="light"
     )
     default_font_size: Mapped[str] = mapped_column(
-        SAEnum("normal", "large", name="font_size_enum"), default="normal"
+        SAEnum("small", "normal", "large", name="font_size_enum"), default="normal"
     )
     default_language: Mapped[str] = mapped_column(
         SAEnum("fr", "ar", name="language_enum"), default="fr"

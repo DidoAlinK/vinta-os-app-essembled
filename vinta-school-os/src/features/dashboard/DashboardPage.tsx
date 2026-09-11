@@ -129,8 +129,8 @@ export function DashboardPage() {
     let cancelled = false
     async function loadStudents() {
       try {
-        const { data } = await api.get(`/attendance/roster/${selectedSession!.id}`)
-        if (!cancelled) setStudents(data.students ?? data)
+        const { data } = await api.get(`/sessions/${selectedSession!.id}/roster`)
+        if (!cancelled) setStudents(data.roster ?? data)
       } catch {
         if (!cancelled) setStudents([])
       }

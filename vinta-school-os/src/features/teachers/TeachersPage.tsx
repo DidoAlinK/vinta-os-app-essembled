@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
-import { formatCurrency } from '../../lib/formatters'
 import { toast } from '../../stores/uiStore'
 import TeacherTable from './TeacherTable'
 import TeacherDrawer from './TeacherDrawer'
@@ -46,8 +45,8 @@ export default function TeachersPage() {
     try {
       const { data } = await api.get('/teachers')
       setTeachers(data.teachers ?? data)
-    } catch (err) {
-      console.error('[TeachersPage] Failed to fetch teachers', err)
+    } catch {
+      // Error handled by empty state
     } finally {
       setIsLoading(false)
     }
@@ -74,8 +73,7 @@ export default function TeachersPage() {
       setTeachers((prev) => prev.filter((t) => t.id !== id))
       handleCloseDrawer()
       toast.success('Teacher deleted successfully')
-    } catch (err) {
-      console.error('[TeachersPage] Failed to delete teacher', err)
+    } catch {
       toast.error('Failed to delete teacher', 'Please try again.')
     }
   }, [handleCloseDrawer])

@@ -164,7 +164,7 @@ function TeacherTable({ teachers, onSelect, isLoading }: TeacherTableProps) {
             ))}
             {(teacher.classes_assigned ?? []).length > 2 && (
               <span className="text-[10px] text-[var(--muted)]">
-                +{teacher.classes_assigned.length - 2}
+                +{(teacher.classes_assigned ?? []).length - 2}
               </span>
             )}
           </div>

@@ -90,11 +90,14 @@ def overdue_bucket(days: int) -> str:
         return "critical"
 
 
-def week_date_range() -> tuple[date, date]:
-    """Get the start (Sunday) and end (Saturday) of the current week."""
-    t = today()
-    start = t - timedelta(days=t.weekday() + 1)  # Sunday
-    end = start + timedelta(days=6)  # Saturday
+def week_date_range(reference_date=None):
+    """Return (start, end) of the week (Sunday-Saturday)."""
+    from datetime import date, timedelta
+    t = reference_date or date.today()
+    # Sunday is the start of the week
+    days_since_sunday = (t.weekday() + 1) % 7
+    start = t - timedelta(days=days_since_sunday)
+    end = start + timedelta(days=6)
     return start, end
 
 
@@ -110,15 +113,17 @@ def month_date_range() -> tuple[date, date]:
 
 
 def next_occurrence(day_of_week: int) -> date:
-    """
-    Get the next occurrence of a day of the week.
-    day_of_week: 0=Sun, 1=Mon, ..., 6=Sat
-    """
-    t = today()
-    days_ahead = day_of_week - t.weekday() - 1  # Adjust for Sunday=0
-    if days_ahead < 0:
-        days_ahead += 7
-    return t + timedelta(days=days_ahead)
+    """Return the next date that falls on the given day_of_week (0=Sunday)."""
+    from datetime import date, timedelta
+    today = date.today()
+    # Python weekday(): Monday=0 ... Sunday=6
+    # Our convention: Sunday=0, Monday=1 ... Saturday=6
+    # Convert: our_day 0(Sun) -> python 6, our_day 1(Mon) -> python 0, etc.
+    python_day = (day_of_week - 1) % 7
+    days_ahead = (python_day - today.weekday()) % 7
+    if days_ahead == 0:
+        days_ahead = 7  # Always return NEXT occurrence, not today
+    return today + timedelta(days=days_ahead)
 
 
 # --- Session Duration ---

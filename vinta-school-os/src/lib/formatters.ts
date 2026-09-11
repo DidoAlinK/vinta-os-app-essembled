@@ -66,6 +66,21 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
+ * Integer-only DZD helper — currency locked to DZD display.
+ * Accepts floats but rounds to the nearest integer (no centimes).
+ * @param amount - Amount in DZD (integer expected)
+ * @returns Formatted string like "2000 Da"
+ */
+export function formatDa(amount: number): string {
+  const int = Math.round(Number.isFinite(amount) ? amount : 0)
+  return `${new Intl.NumberFormat('fr-DZ', {
+    style: 'decimal',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(int)} Da`
+}
+
+/**
  * Format amount without currency symbol
  * @param amount - Amount
  * @returns Formatted string like "3,500"

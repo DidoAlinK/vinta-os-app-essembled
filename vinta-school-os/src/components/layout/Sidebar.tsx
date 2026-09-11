@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useMatch } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { useAuthStore } from '../../stores/authStore'
 import { useUIStore } from '../../stores/uiStore'
@@ -17,7 +17,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 export function Sidebar() {
   const navigate = useNavigate()
-  const location = useLocation()
+  const match = useMatch('/app/:page')
+  const activePage = match?.params.page ?? 'dashboard'
   const user = useAuthStore(s => s.user)
   const logout = useAuthStore(s => s.logout)
   const switchProfile = useAuthStore(s => s.switchProfile)
@@ -36,8 +37,6 @@ export function Sidebar() {
     if (user?.role === 'staff' && STAFF_HIDDEN_PAGES.includes(item.key)) return false
     return true
   })
-
-  const currentPage = location.pathname.split('/')[2] || 'dashboard'
 
   const handleNav = (key: string) => {
     navigate(`/app/${key}`)
@@ -67,7 +66,7 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-2 space-y-1">
         {visibleItems.map(item => {
           const Icon = ICON_MAP[item.icon]
-          const active = currentPage === item.key
+          const active = activePage === item.key
           return (
             <button
               key={item.key}
