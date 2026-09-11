@@ -53,7 +53,7 @@ class DevelopmentConfig(BaseConfig):
     """Development environment configuration."""
 
     DEBUG = True
-    SQLALCHEMY_ECHO = True  # Log SQL queries in development
+    SQLALCHEMY_ECHO = False  # Set True to log SQL queries
 
 
 class TestingConfig(BaseConfig):

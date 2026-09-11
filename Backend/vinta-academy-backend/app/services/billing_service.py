@@ -200,6 +200,9 @@ def renew_billing_cycles(academy_id: str) -> int:
 def get_billing_stats(academy_id: str) -> dict:
     """Get aggregate billing statistics for the donut chart.
 
+    Uses the new ``StudentSubscription`` model for student billing ring
+    and ``TeacherPayroll`` for the teacher ring.
+
     Returns a flat dict matching the frontend ``BillingStats`` interface:
     ``student_paid``, ``student_due``, ``student_overdue``, ``student_total``,
     ``teacher_pending``, ``teacher_settled``, ``teacher_overdue``,
@@ -208,17 +211,15 @@ def get_billing_stats(academy_id: str) -> dict:
     from app.models.teacher import Teacher, TeacherPayroll
     from app.models.student import Enrollment
 
-    # Student billing ring
-    student_billings = StudentBilling.query.join(Student).filter(
-        Student.academy_id == academy_id
-    ).all()
+    # ── Student subscription ring ──────────────────────────
+    subs = StudentSubscription.query.filter_by(academy_id=academy_id).all()
 
-    paid = sum(1 for b in student_billings if b.status == "paid")
-    due = sum(1 for b in student_billings if b.status == "due")
-    overdue = sum(1 for b in student_billings if b.status == "overdue")
+    paid = sum(1 for s in subs if s.status in ("ACTIVE",))
+    due = sum(1 for s in subs if s.status in ("EXPIRING_SOON", "RENEW_REQUIRED"))
+    overdue = sum(1 for s in subs if s.status in ("EXPIRED", "DEPLETED"))
     student_total = paid + due + overdue
 
-    # Teacher payroll ring
+    # ── Teacher payroll ring ──────────────────────────────
     payrolls = TeacherPayroll.query.join(
         Teacher, TeacherPayroll.teacher_id == Teacher.id
     ).filter(Teacher.academy_id == academy_id).all()
@@ -228,22 +229,20 @@ def get_billing_stats(academy_id: str) -> dict:
     payroll_overdue = sum(1 for p in payrolls if p.status == "overdue")
     teacher_total = payroll_pending + payroll_settled + payroll_overdue
 
-    # This month's income (sum of paid billings in current month)
+    # ── This month's income ───────────────────────────────
     today = date.today()
     month_start = today.replace(day=1)
     month_income = int(
-        db.session.query(func.sum(StudentBilling.amount_da))
-        .join(Student)
+        db.session.query(func.sum(StudentSubscription.amount_paid_da))
         .filter(
-            Student.academy_id == academy_id,
-            StudentBilling.status == "paid",
-            StudentBilling.paid_date >= month_start,
-            StudentBilling.paid_date <= today,
+            StudentSubscription.academy_id == academy_id,
+            StudentSubscription.created_at >= datetime.combine(month_start, datetime.min.time()),
+            StudentSubscription.created_at <= datetime.combine(today, datetime.max.time()),
         )
         .scalar() or 0
     )
 
-    # Total active enrollments
+    # ── Total active enrollments ──────────────────────────
     total_enrolled = Enrollment.query.join(Student).filter(
         Student.academy_id == academy_id,
         Enrollment.status == "active",
