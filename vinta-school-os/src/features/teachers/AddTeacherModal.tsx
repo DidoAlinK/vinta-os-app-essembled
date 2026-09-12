@@ -4,8 +4,9 @@
  * contact info, contract type, rate, commission model, and inline group creation.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { X, UserPlus, Phone, BookOpen, ChevronDown, Search, Plus, Trash2, GraduationCap } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { X, UserPlus, Phone, BookOpen, ChevronDown, Search, Plus, Trash2 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
 import { toast } from '../../stores/uiStore'
@@ -91,8 +92,10 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
   // Multi-select dropdown state
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const triggerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 })
 
   // Groups state
   const [groups, setGroups] = useState<TeacherGroup[]>([])
@@ -124,22 +127,54 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
     return () => { cancelled = true }
   }, [isOpen])
 
+  // Position dropdown relative to trigger
+  const updateDropdownPos = useCallback(() => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+  }, [])
+
+  // Open/close dropdown with position
+  const toggleDropdown = useCallback(() => {
+    setDropdownOpen(prev => {
+      const next = !prev
+      if (next) {
+        // Position on next frame after render
+        requestAnimationFrame(() => updateDropdownPos())
+      }
+      setSearchTerm('')
+      return next
+    })
+  }, [updateDropdownPos])
+
   // Close dropdown on outside click
   useEffect(() => {
     if (!dropdownOpen) return
     const handleClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false)
-        setSearchTerm('')
-      }
+      const target = e.target as Node
+      if (
+        triggerRef.current?.contains(target) ||
+        dropdownRef.current?.contains(target)
+      ) return
+      setDropdownOpen(false)
+      setSearchTerm('')
     }
+    const handleScroll = () => { if (dropdownOpen) updateDropdownPos() }
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [dropdownOpen])
+    window.addEventListener('scroll', handleScroll, true)
+    window.addEventListener('resize', handleScroll)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleScroll)
+    }
+  }, [dropdownOpen, updateDropdownPos])
 
   // Focus search input when dropdown opens
   useEffect(() => {
-    if (dropdownOpen) searchRef.current?.focus()
+    if (dropdownOpen) {
+      requestAnimationFrame(() => searchRef.current?.focus())
+    }
   }, [dropdownOpen])
 
   const filteredSubjects = subjects.filter((s) =>
@@ -152,6 +187,10 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
         ? prev.filter(id => id !== subjectId)
         : [...prev, subjectId]
     )
+  }, [])
+
+  const removeSubject = useCallback((subjectId: string) => {
+    setSelectedSubjectIds(prev => prev.filter(id => id !== subjectId))
   }, [])
 
   const resetForm = useCallback(() => {
@@ -180,6 +219,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
   }, [])
 
   const handleClose = useCallback(() => {
+    setDropdownOpen(false)
     resetForm()
     onClose()
   }, [onClose, resetForm])
@@ -264,6 +304,10 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
 
   if (!isOpen) return null
 
+  const selectedSubjects = selectedSubjectIds
+    .map(id => subjects.find(s => s.id === id))
+    .filter(Boolean) as Subject[]
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -340,43 +384,64 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
             </div>
           </Field>
 
-          {/* Subjects — multi-select dropdown */}
+          {/* Subjects — multi-select with portal dropdown */}
           <Field label="Subjects" required>
-            <div className="relative" ref={dropdownRef}>
+            {/* Selected chips */}
+            {selectedSubjects.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedSubjects.map(s => (
+                  <span
+                    key={s.id}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--glass)] border border-[var(--glass-border)]"
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                    <span className="text-[var(--text)]">{s.name}</span>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); removeSubject(s.id!) }}
+                      className="ml-0.5 p-0.5 rounded text-[var(--muted)] hover:text-[var(--red)] transition-colors"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Trigger */}
+            <div ref={triggerRef} className="relative">
               <button
                 type="button"
-                onClick={() => { setDropdownOpen((o) => !o); setSearchTerm('') }}
+                onClick={toggleDropdown}
                 className={cn(
                   inputCls,
-                  'flex items-center gap-2 text-left min-h-[38px]',
+                  'flex items-center gap-2 text-left min-h-[38px] cursor-pointer',
                   dropdownOpen && 'ring-2 ring-[var(--gold)]/30',
                 )}
               >
                 <BookOpen size={14} className="text-[var(--muted)] shrink-0" />
-                {selectedSubjectIds.length > 0 ? (
-                  <div className="flex flex-wrap gap-1 flex-1">
-                    {selectedSubjectIds.map(id => {
-                      const s = subjects.find(sub => sub.id === id)
-                      if (!s) return null
-                      return (
-                        <span
-                          key={id}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--glass)] border border-[var(--glass-border)]"
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: s.color }} />
-                          {s.name}
-                        </span>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <span className="text-[var(--muted)]">Select subjects...</span>
-                )}
-                <ChevronDown size={14} className={cn('text-[var(--muted)] ml-auto shrink-0 transition-transform', dropdownOpen && 'rotate-180')} />
+                <span className="flex-1 text-left truncate">
+                  {selectedSubjects.length > 0
+                    ? `${selectedSubjects.length} subject${selectedSubjects.length > 1 ? 's' : ''} selected`
+                    : <span className="text-[var(--muted)]">Select subjects…</span>
+                  }
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={cn('text-[var(--muted)] shrink-0 transition-transform duration-150', dropdownOpen && 'rotate-180')}
+                />
               </button>
+            </div>
 
-              {dropdownOpen && (
-                <div className="absolute z-50 mt-1.5 w-full rounded-xl bg-[var(--bg)] border border-[var(--glass-border)] shadow-xl overflow-hidden animate-fade-in">
+            {/* Portal dropdown — renders outside overflow containers */}
+            {dropdownOpen && createPortal(
+              <div
+                ref={dropdownRef}
+                className="fixed z-[9999]"
+                style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+              >
+                <div className="rounded-xl bg-[var(--card-bg)] border border-[var(--glass-border)] shadow-2xl overflow-hidden animate-fade-in">
+                  {/* Search */}
                   <div className="relative border-b border-[var(--glass-border)]">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                     <input
@@ -384,53 +449,61 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
                       type="text"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search subjects..."
+                      placeholder="Search subjects…"
                       className={cn(
-                        'w-full pl-9 pr-3 py-2 text-sm text-[var(--text)]',
+                        'w-full pl-9 pr-3 py-2.5 text-sm text-[var(--text)]',
                         'bg-transparent outline-none',
                         'placeholder:text-[var(--muted)]',
                       )}
                     />
                   </div>
-                  <div className="max-h-48 overflow-y-auto py-1">
+                  {/* Options */}
+                  <div className="max-h-56 overflow-y-auto py-1">
                     {subjectsLoading ? (
                       <div className="px-3 py-4 text-center text-xs text-[var(--muted)]">
-                        Loading subjects...
+                        Loading subjects…
                       </div>
                     ) : filteredSubjects.length === 0 ? (
                       <div className="px-3 py-4 text-center text-xs text-[var(--muted)]">
-                        {subjects.length === 0 ? 'No subjects yet' : 'No match'}
+                        {subjects.length === 0 ? 'No subjects yet — create them in Settings' : 'No match'}
                       </div>
                     ) : (
                       filteredSubjects.map((s) => {
-                        const isSelected = selectedSubjectIds.includes(s.id || '')
+                        if (!s.id) return null
+                        const isSelected = selectedSubjectIds.includes(s.id)
                         return (
                           <button
-                            key={s.name}
+                            key={s.id}
                             type="button"
-                            onClick={() => s.id && toggleSubject(s.id)}
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              toggleSubject(s.id!)
+                            }}
                             className={cn(
-                              'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left',
-                              'hover:bg-[var(--glass)] transition-colors duration-100',
+                              'w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left cursor-pointer',
+                              'hover:bg-[var(--glass)] transition-colors duration-75',
                               isSelected && 'bg-[var(--gold-soft)]',
                             )}
                           >
                             <div className={cn(
-                              'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all',
+                              'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all duration-100',
                               isSelected ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--glass-border)]',
                             )}>
-                              {isSelected && <span className="text-white text-[10px]">✓</span>}
+                              {isSelected && <span className="text-white text-[10px] font-bold">✓</span>}
                             </div>
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                            <span className="truncate">{s.name}</span>
+                            <span className="truncate text-[var(--text)]">{s.name}</span>
                           </button>
                         )
                       })
                     )}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>,
+              document.body,
+            )}
+
             {selectedSubjectIds.length === 0 && (
               <p className="text-[10px] text-[var(--red)] mt-1">At least one subject is required</p>
             )}
@@ -736,7 +809,7 @@ function Field({
 }: {
   label: string
   required?: boolean
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <div>
