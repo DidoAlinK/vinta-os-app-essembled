@@ -607,8 +607,6 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                   document.body,
                 )}
               </EditField>
-                </div>
-              </EditField>
 
               {/* Contract Type Toggle */}
               <EditField label="Contract Type">
