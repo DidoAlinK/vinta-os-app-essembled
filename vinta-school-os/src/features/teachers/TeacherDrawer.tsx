@@ -685,6 +685,7 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
               </div>
             </div>
           ) : (
+          <>
           <div className="flex items-start gap-4">
             <div
               className={cn(
@@ -1019,6 +1020,7 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
               </p>
             </Section>
           )}
+          </>
           )}
         </div>
 
