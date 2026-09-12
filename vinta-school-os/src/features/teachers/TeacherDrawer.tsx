@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X,
   Phone,
@@ -139,8 +140,10 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
   const [subjectsLoading, setSubjectsLoading] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const triggerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 })
 
   /* ── ESC key handler ── */
   useEffect(() => {
@@ -270,6 +273,17 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
     )
   }, [])
 
+  const removeEditSubject = useCallback((subjectId: string) => {
+    setEditSubjectIds(prev => prev.filter(id => id !== subjectId))
+  }, [])
+
+  /* ── Dropdown position for portal ── */
+  const updateDropdownPos = useCallback(() => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+  }, [])
+
   /* ── Reset create class state when drawer closes ── */
   useEffect(() => {
     if (!isOpen) {
@@ -339,18 +353,25 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
   useEffect(() => {
     if (!dropdownOpen) return
     const handleClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false)
-        setSearchTerm('')
-      }
+      const target = e.target as Node
+      if (triggerRef.current?.contains(target) || dropdownRef.current?.contains(target)) return
+      setDropdownOpen(false)
+      setSearchTerm('')
     }
+    const handleScroll = () => { if (dropdownOpen) updateDropdownPos() }
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [dropdownOpen])
+    window.addEventListener('scroll', handleScroll, true)
+    window.addEventListener('resize', handleScroll)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleScroll)
+    }
+  }, [dropdownOpen, updateDropdownPos])
 
   /* ── Focus search input when dropdown opens ── */
   useEffect(() => {
-    if (dropdownOpen) searchRef.current?.focus()
+    if (dropdownOpen) requestAnimationFrame(() => searchRef.current?.focus())
   }, [dropdownOpen])
 
   /* ── Reset edit state when drawer closes ── */
@@ -460,41 +481,74 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                 />
               </EditField>
 
-              {/* Subject — custom dropdown */}
-              <EditField label="Subject">
-                <div className="relative" ref={dropdownRef}>
+              {/* Subject — multi-select with portal dropdown */}
+              <EditField label="Subjects">
+                {/* Selected chips */}
+                {editSubjectIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {editSubjectIds.map(id => {
+                      const s = subjects.find(sub => sub.id === id)
+                      if (!s) return null
+                      return (
+                        <span key={id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--glass)] border border-[var(--glass-border)]">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                          <span className="text-[var(--text)]">{s.name}</span>
+                          <button
+                            type="button"
+                            onMouseDown={(e) => { e.preventDefault(); removeEditSubject(id) }}
+                            className="ml-0.5 p-0.5 rounded text-[var(--muted)] hover:text-[var(--red)] transition-colors"
+                          >
+                            <X size={10} />
+                          </button>
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Trigger */}
+                <div ref={triggerRef}>
                   <button
                     type="button"
-                    onClick={() => { setDropdownOpen((o) => !o); setSearchTerm('') }}
+                    onClick={() => {
+                      setDropdownOpen((o) => {
+                        if (!o) requestAnimationFrame(() => updateDropdownPos())
+                        setSearchTerm('')
+                        return !o
+                      })
+                    }}
                     className={cn(
-                      editInputCls,
-                      'flex items-center gap-2 text-left',
-                      dropdownOpen && 'ring-2 ring-[var(--gold)]/30',
+                      'w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-left cursor-pointer',
+                      'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                      'hover:border-[var(--muted)]/40',
+                      'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                      'transition-all duration-150',
+                      dropdownOpen && 'ring-2 ring-[var(--gold)]/30 border-[var(--gold)]/40',
                     )}
                   >
                     <BookOpen size={14} className="text-[var(--muted)] shrink-0" />
-                    {editSubjectIds.length > 0 ? (
-                      <div className="flex flex-wrap gap-1 flex-1">
-                        {editSubjectIds.map(id => {
-                          const s = subjects.find(sub => sub.id === id)
-                          if (!s) return null
-                          return (
-                            <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--glass)] border border-[var(--glass-border)]">
-                              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: s.color }} />
-                              {s.name}
-                            </span>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <span className="text-[var(--muted)]">Select subjects…</span>
-                    )}
+                    <span className="flex-1 text-left truncate">
+                      {editSubjectIds.length > 0
+                        ? `${editSubjectIds.length} subject${editSubjectIds.length > 1 ? 's' : ''} selected`
+                        : <span className="text-[var(--muted)]">Select subjects…</span>
+                      }
+                    </span>
                     <ChevronDown size={14} className={cn('text-[var(--muted)] ml-auto shrink-0 transition-transform', dropdownOpen && 'rotate-180')} />
                   </button>
+                </div>
 
-                  {dropdownOpen && (
-                    <div className="absolute z-50 mt-1.5 w-full rounded-xl bg-[var(--bg)] border border-[var(--glass-border)] shadow-xl overflow-hidden animate-fade-in">
-                      {/* Search */}
+                {/* Portal dropdown */}
+                {dropdownOpen && createPortal(
+                  <div
+                    ref={dropdownRef}
+                    className="fixed z-[9999]"
+                    style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+                  >
+                    <div
+                      className="rounded-xl border border-[var(--glass-border)] shadow-2xl overflow-hidden animate-fade-in"
+                      style={{ backgroundColor: 'var(--card-bg)' }}
+                    >
+                      {/* Search input */}
                       <div className="relative border-b border-[var(--glass-border)]">
                         <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                         <input
@@ -503,53 +557,56 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
                           placeholder="Search subjects…"
-                          className={cn(
-                            'w-full pl-9 pr-3 py-2 text-sm text-[var(--text)]',
-                            'bg-transparent outline-none',
-                            'placeholder:text-[var(--muted)]',
-                          )}
+                          className="w-full pl-9 pr-3 py-2.5 text-sm text-[var(--text)] bg-transparent outline-none placeholder:text-[var(--muted)]/50"
                         />
                       </div>
 
-                      {/* Options */}
-                      <div className="max-h-48 overflow-y-auto py-1">
+                      {/* Options list */}
+                      <div className="max-h-56 overflow-y-auto py-1">
                         {subjectsLoading ? (
                           <div className="px-3 py-4 text-center text-xs text-[var(--muted)]">
                             Loading subjects…
                           </div>
                         ) : filteredSubjects.length === 0 ? (
                           <div className="px-3 py-4 text-center text-xs text-[var(--muted)]">
-                            {subjects.length === 0 ? 'No subjects yet' : 'No match'}
+                            {subjects.length === 0 ? 'No subjects yet — create them in Settings' : 'No match'}
                           </div>
                         ) : (
                           filteredSubjects.map((s) => {
                             const isSelected = editSubjectIds.includes(s.id)
                             return (
                               <button
-                                key={s.name}
+                                key={s.id}
                                 type="button"
-                                onClick={() => toggleEditSubject(s.id)}
+                                onMouseDown={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  toggleEditSubject(s.id)
+                                }}
                                 className={cn(
-                                  'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left',
-                                  'hover:bg-[var(--glass)] transition-colors duration-100',
+                                  'w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left cursor-pointer',
+                                  'hover:bg-[var(--glass)] transition-colors duration-75',
                                   isSelected && 'bg-[var(--gold-soft)]',
                                 )}
                               >
                                 <div className={cn(
-                                  'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all',
+                                  'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all duration-100',
                                   isSelected ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--glass-border)]',
                                 )}>
-                                  {isSelected && <span className="text-white text-[10px]">✓</span>}
+                                  {isSelected && <span className="text-white text-[10px] font-bold">✓</span>}
                                 </div>
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                                <span className="truncate">{s.name}</span>
+                                <span className="truncate text-[var(--text)]">{s.name}</span>
                               </button>
                             )
                           })
                         )}
                       </div>
                     </div>
-                  )}
+                  </div>,
+                  document.body,
+                )}
+              </EditField>
                 </div>
               </EditField>
 

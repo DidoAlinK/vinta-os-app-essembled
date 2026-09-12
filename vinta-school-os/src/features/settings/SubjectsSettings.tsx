@@ -71,8 +71,9 @@ export default function SubjectsSettings() {
       setNewName('')
       setNewColor(COLOR_PRESETS[0])
       toast.success('Subject created', `"${data.name}" has been added.`)
-    } catch {
-      toast.error('Failed to create', 'Could not add the subject. Please try again.')
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Unknown error'
+      toast.error('Failed to create subject', msg)
     } finally {
       setCreating(false)
     }
