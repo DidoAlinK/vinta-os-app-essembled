@@ -80,6 +80,13 @@ def update_academy():
 
         # Step 1: Delete leaf records (no academy_id — use FK cascade)
         from app.models.billing import StudentSubscription, PayoutRecord, RevenueEntry
+        from app.models.teacher import TeacherSubject
+
+        # Clean up junction table records first (bulk .delete() bypasses ORM cascades)
+        TeacherSubject.query.filter(
+            TeacherSubject.teacher_id.in_(teacher_ids)
+        ).delete(synchronize_session=False) if teacher_ids else None
+
         if student_ids:
             # Collect billing IDs before deleting billings
             billing_ids = [b.id for b in StudentBilling.query.filter(StudentBilling.student_id.in_(student_ids)).all()]
@@ -516,9 +523,15 @@ def reset_academy_data():
     # Step 1: Delete leaf records (no academy_id — use FK cascade)
     from app.models.billing import PaymentLog, StudentSubscription, PayoutRecord, RevenueEntry
     from app.models.attendance import SessionStudent
-    from app.models.teacher import TeacherHoursLog, TeacherPayroll
+    from app.models.teacher import TeacherHoursLog, TeacherPayroll, TeacherSubject
     from app.models.scheduling import Schedule
     from app.models.student import Enrollment, Guardian
+
+    # Clean up junction table records first (bulk .delete() bypasses ORM cascades)
+    TeacherSubject.query.filter(
+        TeacherSubject.teacher_id.in_(teacher_ids)
+    ).delete(synchronize_session=False) if teacher_ids else None
+
     if student_ids:
         billing_ids = [b.id for b in StudentBilling.query.filter(StudentBilling.student_id.in_(student_ids)).all()]
         SessionStudent.query.filter(SessionStudent.student_id.in_(student_ids)).delete(synchronize_session=False)

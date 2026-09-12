@@ -49,6 +49,15 @@ def create_app(config_name="development"):
 
     api.init_app(app)
 
+    # Enable SQLite foreign key enforcement (required for ON DELETE CASCADE)
+    @app.before_request
+    def _ensure_sqlite_fk():
+        from sqlalchemy import text
+        engine = db.engine
+        if "sqlite" in str(engine.url):
+            with engine.connect() as conn:
+                conn.execute(text("PRAGMA foreign_keys=ON"))
+
     # JWT token blocklist callback (C-05)
     from app.utils.token_blacklist import is_token_blacklisted
 
