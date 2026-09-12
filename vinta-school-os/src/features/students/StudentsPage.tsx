@@ -255,6 +255,7 @@ export default function StudentsPage() {
         student={selectedStudent}
         isOpen={isDrawerOpen}
         onClose={handleCloseDrawer}
+        onUpdated={fetchStudents}
       />
 
       {/* ── Add Student Modal ────────────────────── */}

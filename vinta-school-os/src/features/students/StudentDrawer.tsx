@@ -15,8 +15,13 @@ import {
   CreditCard,
   Plus,
   Tag,
+  Edit3,
+  Save,
+  ChevronLeft,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import api from '../../lib/api'
+import { toast } from '../../stores/uiStore'
 import {
   getInitials,
   formatPhone,
@@ -34,6 +39,7 @@ export interface StudentDrawerProps {
   student: Student | null
   isOpen: boolean
   onClose: () => void
+  onUpdated?: () => void
 }
 
 // ============================================
@@ -50,12 +56,39 @@ interface PaymentPreset {
 // Component
 // ============================================
 
-export default function StudentDrawer({ student, isOpen, onClose }: StudentDrawerProps) {
+export default function StudentDrawer({ student, isOpen, onClose, onUpdated }: StudentDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null)
+
+  // Edit state
+  const [isEditing, setIsEditing] = useState(false)
+  const [editFirstName, setEditFirstName] = useState('')
+  const [editLastName, setEditLastName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editParentPhone, setEditParentPhone] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [saving, setSaving] = useState(false)
 
   // Payment plan state
   const [paymentPresets, setPaymentPresets] = useState<PaymentPreset[]>([])
+  const [billingRecords, setBillingRecords] = useState<Array<{ id: string; amount_da: number; status: string }>>([])
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+
+  /* ── Fetch student billing records ── */
+  const fetchBillingRecords = useCallback(async () => {
+    if (!student) return
+    try {
+      const res = await api.get('/billing/students', { params: { student_id: student.id } })
+      setBillingRecords(res.data.billings ?? [])
+    } catch {
+      // Silent — billing data is supplementary
+    }
+  }, [student])
+
+  useEffect(() => {
+    if (isOpen && student) {
+      fetchBillingRecords()
+    }
+  }, [isOpen, student, fetchBillingRecords])
 
   /* ── ESC key handler ── */
   useEffect(() => {
@@ -89,6 +122,42 @@ export default function StudentDrawer({ student, isOpen, onClose }: StudentDrawe
     [onClose],
   )
 
+  /* ── Edit handlers ── */
+  const startEditing = useCallback(() => {
+    if (!student) return
+    setEditFirstName(student.first_name || '')
+    setEditLastName(student.last_name || '')
+    setEditPhone(student.phone || '')
+    setEditParentPhone(student.parent_phone || '')
+    setEditNotes(student.notes || '')
+    setIsEditing(true)
+  }, [student])
+
+  const cancelEditing = useCallback(() => {
+    setIsEditing(false)
+  }, [])
+
+  const saveEditing = useCallback(async () => {
+    if (!student) return
+    setSaving(true)
+    try {
+      await api.put(`/students/${student.id}`, {
+        first_name: editFirstName.trim(),
+        last_name: editLastName.trim(),
+        phone: editPhone.trim() || null,
+        parent_phone: editParentPhone.trim() || null,
+        notes: editNotes.trim() || null,
+      })
+      toast.success('Student updated', 'Profile has been saved.')
+      setIsEditing(false)
+      onUpdated?.()
+    } catch {
+      toast.error('Update failed', 'Could not save changes. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }, [student, editFirstName, editLastName, editPhone, editParentPhone, editNotes, onUpdated])
+
   if (!isOpen || !student) return null
 
   return (
@@ -113,69 +182,200 @@ export default function StudentDrawer({ student, isOpen, onClose }: StudentDrawe
       >
         {/* ── Header ──────────────────────────────── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--glass-border)]">
-          <h3
-            className="text-base font-bold text-[var(--text)]"
-            style={{ fontFamily: 'var(--font-heading)' }}
-          >
-            Student Profile
-          </h3>
-          <button
-            onClick={onClose}
-            className={cn(
-              'p-1.5 rounded-lg',
-              'hover:bg-[var(--glass)] text-[var(--muted)]',
-              'transition-colors duration-150',
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <button
+                onClick={cancelEditing}
+                className={cn(
+                  'p-1.5 rounded-lg',
+                  'hover:bg-[var(--glass)] text-[var(--muted)]',
+                  'transition-colors duration-150',
+                )}
+              >
+                <ChevronLeft size={16} />
+              </button>
+            ) : null}
+            <h3
+              className="text-base font-bold text-[var(--text)]"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              {isEditing ? 'Edit Profile' : 'Student Profile'}
+            </h3>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {isEditing ? (
+              <>
+                <button
+                  onClick={cancelEditing}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-medium',
+                    'bg-[var(--input-bg)] text-[var(--muted)] border border-[var(--glass-border)]',
+                    'hover:bg-[var(--glass)] transition-colors duration-150',
+                  )}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEditing}
+                  disabled={saving}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-semibold',
+                    'bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] text-white',
+                    'hover:opacity-90 active:scale-[0.98] disabled:opacity-50',
+                    'transition-all duration-150',
+                  )}
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={startEditing}
+                  className={cn(
+                    'p-1.5 rounded-lg',
+                    'hover:bg-[var(--glass)] text-[var(--gold)]',
+                    'transition-colors duration-150',
+                  )}
+                  title="Edit student"
+                >
+                  <Edit3 size={15} />
+                </button>
+                <button
+                  onClick={onClose}
+                  className={cn(
+                    'p-1.5 rounded-lg',
+                    'hover:bg-[var(--glass)] text-[var(--muted)]',
+                    'transition-colors duration-150',
+                  )}
+                >
+                  <X size={16} />
+                </button>
+              </>
             )}
-          >
-            <X size={16} />
-          </button>
+          </div>
         </div>
 
         {/* ── Content ─────────────────────────────── */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
           {/* Student Info */}
-          <div className="flex items-start gap-4">
-            <div
-              className={cn(
-                'w-14 h-14 rounded-2xl flex items-center justify-center shrink-0',
-                'text-lg font-bold',
-              )}
-              style={{
-                background: 'linear-gradient(135deg, var(--gold-soft), var(--emerald-soft))',
-                color: 'var(--gold)',
-              }}
-            >
-              {getInitials(student.full_name)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="text-base font-bold text-[var(--text)] truncate">
-                {student.full_name}
-              </h4>
-              {student.phone && (
-                <p className="text-sm text-[var(--muted)] flex items-center gap-1.5 mt-1">
-                  <Phone size={13} />
-                  {formatPhone(student.phone)}
-                </p>
-              )}
-              <div className="flex items-center gap-2 mt-2">
-                <span
+          {isEditing ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-medium text-[var(--muted)] mb-1 block">First Name</label>
+                  <input
+                    type="text"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    className={cn(
+                      'w-full px-3 py-2 rounded-xl text-sm text-[var(--text)]',
+                      'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                      'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-[var(--muted)] mb-1 block">Last Name</label>
+                  <input
+                    type="text"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    className={cn(
+                      'w-full px-3 py-2 rounded-xl text-sm text-[var(--text)]',
+                      'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                      'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                    )}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-[var(--muted)] mb-1 block">Phone</label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="e.g. 0555123456"
                   className={cn(
-                    'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium',
-                    getStatusBg(student.status),
-                    getStatusColor(student.status),
+                    'w-full px-3 py-2 rounded-xl text-sm text-[var(--text)]',
+                    'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                    'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
                   )}
-                >
-                  {student.status}
-                </span>
-                {student.plan && (
-                  <span className="text-[11px] text-[var(--muted)] flex items-center gap-1">
-                    <CreditCard size={10} />
-                    {student.plan}
-                  </span>
-                )}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-[var(--muted)] mb-1 block">Parent Phone</label>
+                <input
+                  type="tel"
+                  value={editParentPhone}
+                  onChange={(e) => setEditParentPhone(e.target.value)}
+                  placeholder="e.g. 0555789012"
+                  className={cn(
+                    'w-full px-3 py-2 rounded-xl text-sm text-[var(--text)]',
+                    'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                    'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                  )}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-[var(--muted)] mb-1 block">Notes</label>
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Any notes about this student..."
+                  className={cn(
+                    'w-full px-3 py-2 rounded-xl text-sm text-[var(--text)] resize-none',
+                    'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                    'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                  )}
+                />
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-start gap-4">
+              <div
+                className={cn(
+                  'w-14 h-14 rounded-2xl flex items-center justify-center shrink-0',
+                  'text-lg font-bold',
+                )}
+                style={{
+                  background: 'linear-gradient(135deg, var(--gold-soft), var(--emerald-soft))',
+                  color: 'var(--gold)',
+                }}
+              >
+                {getInitials(student.full_name)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-base font-bold text-[var(--text)] truncate">
+                  {student.full_name}
+                </h4>
+                {student.phone && (
+                  <p className="text-sm text-[var(--muted)] flex items-center gap-1.5 mt-1">
+                    <Phone size={13} />
+                    {formatPhone(student.phone)}
+                  </p>
+                )}
+                <div className="flex items-center gap-2 mt-2">
+                  <span
+                    className={cn(
+                      'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium',
+                      getStatusBg(student.status),
+                      getStatusColor(student.status),
+                    )}
+                  >
+                    {student.status}
+                  </span>
+                  {student.plan && (
+                    <span className="text-[11px] text-[var(--muted)] flex items-center gap-1">
+                      <CreditCard size={10} />
+                      {student.plan}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Classes */}
           {student.classes && (
@@ -286,11 +486,15 @@ export default function StudentDrawer({ student, isOpen, onClose }: StudentDrawe
           </Section>
 
           {/* Notes */}
-          {student.notes && (
+          {!isEditing && (
             <Section icon={<BookOpen size={14} />} title="Notes">
-              <p className="text-sm text-[var(--muted)] leading-relaxed">
-                {student.notes}
-              </p>
+              {student.notes ? (
+                <p className="text-sm text-[var(--muted)] leading-relaxed">
+                  {student.notes}
+                </p>
+              ) : (
+                <p className="text-xs text-[var(--muted)] italic">No notes</p>
+              )}
             </Section>
           )}
         </div>
@@ -337,8 +541,10 @@ export default function StudentDrawer({ student, isOpen, onClose }: StudentDrawe
       {/* Payment Modal */}
       {showPaymentModal && (
         <PaymentModal
+          studentId={student.id}
           presets={paymentPresets}
           onAddPreset={(preset) => setPaymentPresets((prev) => [...prev, preset])}
+          onPaymentRecorded={fetchBillingRecords}
           onClose={() => setShowPaymentModal(false)}
         />
       )}
@@ -377,37 +583,65 @@ function Section({
 // ============================================
 
 function PaymentModal({
+  studentId,
   presets,
   onAddPreset,
+  onPaymentRecorded,
   onClose,
 }: {
+  studentId: string
   presets: PaymentPreset[]
   onAddPreset: (preset: PaymentPreset) => void
+  onPaymentRecorded: () => void
   onClose: () => void
 }) {
   const [mode, setMode] = useState<'choose' | 'custom' | 'preset'>('choose')
   const [customAmount, setCustomAmount] = useState('')
   const [presetName, setPresetName] = useState('')
   const [presetAmount, setPresetAmount] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleAddCustom = () => {
+  const handleAddCustom = async () => {
     if (!customAmount) return
-    onAddPreset({
-      id: Date.now().toString(),
-      name: 'Custom Payment',
-      amount: Number(customAmount),
-    })
-    onClose()
+    setLoading(true)
+    try {
+      await api.post('/billing/record-payment', {
+        student_id: studentId,
+        amount_da: Number(customAmount),
+        payment_method: 'cash',
+        notes: 'Custom payment from student profile',
+      })
+      toast.success('Payment recorded', `Amount: ${formatCurrency(Number(customAmount))}`)
+      onPaymentRecorded()
+      onClose()
+    } catch {
+      toast.error('Payment failed', 'Could not record the payment. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleAddPreset = () => {
+  const handleAddPreset = async () => {
     if (!presetName.trim() || !presetAmount) return
-    onAddPreset({
-      id: Date.now().toString(),
-      name: presetName.trim(),
-      amount: Number(presetAmount),
-    })
-    onClose()
+    setLoading(true)
+    try {
+      await api.post('/billing/plans', {
+        name: presetName.trim(),
+        amount_da: Number(presetAmount),
+        duration_days: 30,
+      })
+      toast.success('Preset created', `"${presetName.trim()}" payment plan saved.`)
+      onAddPreset({
+        id: Date.now().toString(),
+        name: presetName.trim(),
+        amount: Number(presetAmount),
+      })
+      onClose()
+    } catch {
+      toast.error('Preset failed', 'Could not create payment plan. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -497,10 +731,10 @@ function PaymentModal({
               <button
                 type="button"
                 onClick={handleAddCustom}
-                disabled={!customAmount}
+                disabled={!customAmount || loading}
                 className="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] disabled:opacity-40"
               >
-                Add
+                {loading ? 'Saving…' : 'Add'}
               </button>
             </div>
           </div>
@@ -548,10 +782,10 @@ function PaymentModal({
               <button
                 type="button"
                 onClick={handleAddPreset}
-                disabled={!presetName.trim() || !presetAmount}
+                disabled={!presetName.trim() || !presetAmount || loading}
                 className="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] disabled:opacity-40"
               >
-                Save Preset
+                {loading ? 'Saving…' : 'Save Preset'}
               </button>
             </div>
           </div>

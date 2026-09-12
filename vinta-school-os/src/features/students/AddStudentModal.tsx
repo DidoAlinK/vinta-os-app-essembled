@@ -1,7 +1,7 @@
 /**
  * Vinta School OS — Add Student Modal
  * Modal form for creating new student records with
- * class enrollment and searchable class selection.
+ * mandatory multi-group enrollment and searchable class selection.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -36,7 +36,7 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
   const [phone, setPhone] = useState('')
   const [parentPhone, setParentPhone] = useState('')
   const [notes, setNotes] = useState('')
-  const [selectedClassId, setSelectedClassId] = useState('')
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([])
   const [classSearch, setClassSearch] = useState('')
   const [classDropdownOpen, setClassDropdownOpen] = useState(false)
 
@@ -49,6 +49,7 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
 
   /* ── Refs ── */
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   /* ── Fetch class options when opened ── */
   useEffect(() => {
@@ -79,7 +80,7 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
       setPhone('')
       setParentPhone('')
       setNotes('')
-      setSelectedClassId('')
+      setSelectedClassIds([])
       setClassSearch('')
       setClassDropdownOpen(false)
       setError(null)
@@ -108,17 +109,33 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [classDropdownOpen])
 
+  /* ── Focus search when dropdown opens ── */
+  useEffect(() => {
+    if (classDropdownOpen) searchInputRef.current?.focus()
+  }, [classDropdownOpen])
+
+  /* ── Toggle class selection ── */
+  const toggleClass = useCallback((classId: string) => {
+    setSelectedClassIds(prev =>
+      prev.includes(classId)
+        ? prev.filter(id => id !== classId)
+        : [...prev, classId]
+    )
+  }, [])
+
+  /* ── Remove class from selection ── */
+  const removeClass = useCallback((classId: string) => {
+    setSelectedClassIds(prev => prev.filter(id => id !== classId))
+  }, [])
+
   /* ── Filtered class options ── */
   const filteredClasses = classOptions.filter((cls) => {
     const q = classSearch.toLowerCase()
     return (
       cls.name.toLowerCase().includes(q) ||
-      cls.subject.toLowerCase().includes(q)
+      (cls.subject || '').toLowerCase().includes(q)
     )
   })
-
-  /* ── Selected class object ── */
-  const selectedClass = classOptions.find((c) => c.id === selectedClassId) ?? null
 
   /* ── Color dot for class ── */
   const classColor = useCallback((id: string) => {
@@ -132,6 +149,10 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
     const trimmedFirst = firstName.trim()
     const trimmedLast = lastName.trim()
     if (!trimmedFirst || !trimmedLast) return
+    if (selectedClassIds.length === 0) {
+      setError('Please select at least one group to enroll the student in.')
+      return
+    }
 
     setIsSubmitting(true)
     setError(null)
@@ -143,7 +164,7 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
         phone: phone.trim() || undefined,
         parent_phone: parentPhone.trim() || undefined,
         notes: notes.trim() || undefined,
-        class_id: selectedClassId || undefined,
+        class_ids: selectedClassIds,
       })
       if (response.data?.error) {
         setError(response.data.error)
@@ -156,7 +177,7 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
     } finally {
       setIsSubmitting(false)
     }
-  }, [firstName, lastName, phone, parentPhone, notes, selectedClassId, onCreated, onClose])
+  }, [firstName, lastName, phone, parentPhone, notes, selectedClassIds, onCreated, onClose])
 
   /* ── Keyboard submit ── */
   const handleKeyDown = useCallback(
@@ -171,7 +192,7 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
 
   if (!isOpen) return null
 
-  const canSubmit = firstName.trim().length > 0 && lastName.trim().length > 0 && !isSubmitting
+  const canSubmit = firstName.trim().length > 0 && lastName.trim().length > 0 && selectedClassIds.length > 0 && !isSubmitting
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -293,96 +314,78 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
             </div>
           </div>
 
-          {/* Class Enrollment — Searchable Dropdown */}
+          {/* Class Enrollment — Mandatory Multi-Select */}
           <div>
-            <h4 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">
-              Class Enrollment
+            <h4 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1">
+              Group Enrollment <span className="text-[var(--red)]">*</span>
             </h4>
-            <div className="relative" ref={dropdownRef}>
-              {/* Trigger / Display */}
-              {selectedClass ? (
-                <div
-                  className={cn(
-                    'flex items-center justify-between gap-2 px-3 py-2 rounded-lg',
-                    'bg-[var(--input-bg)] border border-[var(--glass-border)]',
-                    'cursor-pointer group',
-                  )}
-                  onClick={() => setClassDropdownOpen((p) => !p)}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: classColor(selectedClass.id) }}
-                    />
-                    <span className="text-sm font-medium text-[var(--text)] truncate">
-                      {selectedClass.name}
-                    </span>
-                    <span className="text-[11px] text-[var(--muted)] truncate">
-                      {selectedClass.subject}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedClassId('')
-                        setClassSearch('')
-                      }}
-                      className={cn(
-                        'p-0.5 rounded text-[var(--muted)]',
-                        'hover:text-[var(--red)] hover:bg-[var(--red-soft)]',
-                        'transition-colors duration-150',
-                      )}
+            <p className="text-[10px] text-[var(--muted)] mb-3">
+              Student must be enrolled in at least one group.
+            </p>
+
+            {/* Selected chips */}
+            {selectedClassIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedClassIds.map(id => {
+                  const cls = classOptions.find(c => c.id === id)
+                  if (!cls) return null
+                  return (
+                    <span
+                      key={id}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium bg-[var(--glass)] border border-[var(--glass-border)]"
                     >
-                      <X size={14} />
-                    </button>
-                    <ChevronDown
-                      size={14}
-                      className={cn(
-                        'text-[var(--muted)] transition-transform duration-150',
-                        classDropdownOpen && 'rotate-180',
-                      )}
-                    />
-                  </div>
-                </div>
-              ) : (
-                /* Empty state — search input */
-                <div
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: classColor(id) }} />
+                      <span className="text-[var(--text)]">{cls.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeClass(id)}
+                        className="p-0.5 rounded text-[var(--muted)] hover:text-[var(--red)] transition-colors"
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Search dropdown */}
+            <div className="relative" ref={dropdownRef}>
+              <div
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-lg',
+                  'bg-[var(--input-bg)] border',
+                  classDropdownOpen
+                    ? 'border-[var(--gold)]/40 ring-2 ring-[var(--gold)]/20'
+                    : 'border-[var(--glass-border)]',
+                  'transition-all duration-150',
+                )}
+                onClick={() => { setClassDropdownOpen(true); searchInputRef.current?.focus() }}
+              >
+                <Search size={14} className="text-[var(--muted)] shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={classSearch}
+                  onChange={(e) => {
+                    setClassSearch(e.target.value)
+                    setClassDropdownOpen(true)
+                  }}
+                  onFocus={() => setClassDropdownOpen(true)}
+                  placeholder="Search groups to enroll..."
                   className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-lg',
-                    'bg-[var(--input-bg)] border',
-                    classDropdownOpen
-                      ? 'border-[var(--gold)]/40 ring-2 ring-[var(--gold)]/20'
-                      : 'border-[var(--glass-border)]',
-                    'transition-all duration-150',
+                    'flex-1 bg-transparent outline-none text-sm text-[var(--text)]',
+                    'placeholder:text-[var(--muted)]/50',
                   )}
-                  onClick={() => setClassDropdownOpen(true)}
-                >
-                  <Search size={14} className="text-[var(--muted)] shrink-0" />
-                  <input
-                    type="text"
-                    value={classSearch}
-                    onChange={(e) => {
-                      setClassSearch(e.target.value)
-                      setClassDropdownOpen(true)
-                    }}
-                    onFocus={() => setClassDropdownOpen(true)}
-                    placeholder="Search classes..."
-                    className={cn(
-                      'flex-1 bg-transparent outline-none text-sm text-[var(--text)]',
-                      'placeholder:text-[var(--muted)]/50',
-                    )}
-                  />
-                  <ChevronDown
-                    size={14}
-                    className={cn(
-                      'text-[var(--muted)] transition-transform duration-150',
-                      classDropdownOpen && 'rotate-180',
-                    )}
-                  />
-                </div>
-              )}
+                />
+                <ChevronDown
+                  size={14}
+                  className={cn(
+                    'text-[var(--muted)] transition-transform duration-150',
+                    classDropdownOpen && 'rotate-180',
+                  )}
+                />
+              </div>
 
               {/* Dropdown */}
               {classDropdownOpen && (
@@ -395,37 +398,38 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
                 >
                   {filteredClasses.length > 0 ? (
                     filteredClasses.map((cls) => {
-                      const isSelected = cls.id === selectedClassId
+                      const isSelected = selectedClassIds.includes(cls.id)
                       return (
                         <button
                           key={cls.id}
                           type="button"
-                          onClick={() => {
-                            setSelectedClassId(cls.id)
-                            setClassSearch('')
-                            setClassDropdownOpen(false)
-                          }}
+                          onClick={() => toggleClass(cls.id)}
                           className={cn(
                             'w-full flex items-center gap-2.5 px-3 py-2.5 text-left',
                             'text-sm transition-colors duration-100',
                             isSelected
-                              ? 'bg-[var(--gold-soft)] text-[var(--text)]'
+                              ? 'bg-[var(--gold-soft)]'
                               : 'text-[var(--text)] hover:bg-[var(--glass)]',
                           )}
                         >
+                          <div className={cn(
+                            'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all',
+                            isSelected ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--glass-border)]',
+                          )}>
+                            {isSelected && <span className="text-white text-[10px]">✓</span>}
+                          </div>
                           <div
                             className="w-2.5 h-2.5 rounded-full shrink-0"
                             style={{ backgroundColor: classColor(cls.id) }}
                           />
                           <div className="min-w-0">
-                            <p className="font-medium truncate">{cls.name}</p>
-                            <p className="text-[11px] text-[var(--muted)] truncate">
-                              {cls.subject}
-                            </p>
+                            <p className="font-medium text-[var(--text)] truncate">{cls.name}</p>
+                            {cls.subject && (
+                              <p className="text-[11px] text-[var(--muted)] truncate">
+                                {cls.subject}
+                              </p>
+                            )}
                           </div>
-                          {isSelected && (
-                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--gold)] shrink-0" />
-                          )}
                         </button>
                       )
                     })
@@ -437,6 +441,10 @@ export default function AddStudentModal({ isOpen, onClose, onCreated }: AddStude
                 </div>
               )}
             </div>
+
+            {selectedClassIds.length === 0 && (
+              <p className="text-[10px] text-[var(--red)] mt-1">At least one group enrollment is required</p>
+            )}
           </div>
         </div>
 

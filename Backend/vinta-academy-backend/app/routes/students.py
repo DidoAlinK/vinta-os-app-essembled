@@ -78,7 +78,7 @@ def get_student(student_id):
 def create_student():
     """
     Create a new student with default guardian and billing.
-    Body: { first_name, last_name, phone?, parent_phone?, notes?, class_id? }
+    Body: { first_name, last_name, phone?, parent_phone?, notes?, class_ids?: [string] }
     """
     from flask import g
     import logging
@@ -97,9 +97,9 @@ def create_student():
             created_by=g.current_user.id,
         )
 
-        # Enroll student in class if class_id was provided
-        class_id = data.get("class_id")
-        if class_id:
+        # Enroll student in classes if class_ids was provided
+        class_ids = data.get("class_ids", [])
+        for class_id in class_ids:
             student_service.enroll_student(
                 student_id=student.id,
                 class_id=class_id,
@@ -203,6 +203,47 @@ def enroll_student(student_id):
         ),
         201,
     )
+
+
+@students_bp.route("/bulk-enroll", methods=["POST"])
+@jwt_required()
+@tenant_required
+def bulk_enroll_students():
+    """
+    Enroll multiple students in a class at once.
+    Body: { student_ids: [...], class_id: "..." }
+    """
+    from flask import g
+    data = request.get_json()
+    if not data or not data.get("student_ids") or not data.get("class_id"):
+        return jsonify({"error": "student_ids and class_id are required"}), 400
+
+    student_ids = data["student_ids"]
+    class_id = data["class_id"]
+    enrolled = []
+    skipped = []
+
+    for sid in student_ids:
+        try:
+            enrollment = student_service.enroll_student(
+                sid, class_id, g.current_academy_id, g.current_user.id
+            )
+            enrolled.append({
+                "student_id": sid,
+                "enrollment_id": enrollment.id,
+                "status": enrollment.status,
+            })
+        except Exception as e:
+            skipped.append({"student_id": sid, "error": str(e)})
+
+    db.session.commit()
+
+    return jsonify({
+        "enrolled": enrolled,
+        "skipped": skipped,
+        "total_enrolled": len(enrolled),
+        "total_skipped": len(skipped),
+    }), 200
 
 
 @students_bp.route("/<student_id>/guardians", methods=["GET"])

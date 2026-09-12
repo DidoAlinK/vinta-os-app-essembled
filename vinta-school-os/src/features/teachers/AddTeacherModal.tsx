@@ -1,11 +1,11 @@
 /**
  * Vinta School OS — Add Teacher Modal
- * Modal form for creating a new teacher with
- * contact info, contract type, rate, and commission model.
+ * Modal form for creating a new teacher with multi-subject selection,
+ * contact info, contract type, rate, commission model, and inline group creation.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { X, UserPlus, Phone, BookOpen, ChevronDown, Search } from 'lucide-react'
+import { X, UserPlus, Phone, BookOpen, ChevronDown, Search, Plus, Trash2, GraduationCap } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
 import { toast } from '../../stores/uiStore'
@@ -17,8 +17,20 @@ import { COMMISSION_TYPE_LABELS } from '../../types/teacher'
 // ============================================
 
 interface Subject {
+  id: string | null
   name: string
   color: string
+}
+
+interface TeacherGroup {
+  id: string
+  name: string
+  subject: string
+  capacity: number
+  price_da: number
+  class_type: 'weekly' | 'temporary'
+  dedicated_time: string
+  notes: string
 }
 
 // ============================================
@@ -62,7 +74,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
-  const [subject, setSubject] = useState('')
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([])
   const [contractType, setContractType] = useState<'hourly' | 'per_student'>('hourly')
   const [rate, setRate] = useState('')
   const [notes, setNotes] = useState('')
@@ -76,11 +88,22 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectsLoading, setSubjectsLoading] = useState(false)
 
-  // Custom dropdown state
+  // Multi-select dropdown state
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  // Groups state
+  const [groups, setGroups] = useState<TeacherGroup[]>([])
+  const [showGroupForm, setShowGroupForm] = useState(false)
+  const [groupName, setGroupName] = useState('')
+  const [groupSubject, setGroupSubject] = useState('')
+  const [groupCapacity, setGroupCapacity] = useState(20)
+  const [groupPrice, setGroupPrice] = useState(0)
+  const [groupClassType, setGroupClassType] = useState<'weekly' | 'temporary'>('weekly')
+  const [groupDedicatedTime, setGroupDedicatedTime] = useState('')
+  const [groupNotes, setGroupNotes] = useState('')
 
   // Fetch subjects on mount
   useEffect(() => {
@@ -123,18 +146,37 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
     s.name.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const selectedSubject = subjects.find((s) => s.name === subject)
+  const toggleSubject = useCallback((subjectId: string) => {
+    setSelectedSubjectIds(prev =>
+      prev.includes(subjectId)
+        ? prev.filter(id => id !== subjectId)
+        : [...prev, subjectId]
+    )
+  }, [])
 
   const resetForm = useCallback(() => {
     setFirstName('')
     setLastName('')
     setPhone('')
-    setSubject('')
+    setSelectedSubjectIds([])
     setContractType('hourly')
     setRate('')
     setNotes('')
     setCommissionType('PERCENTAGE')
     setCommissionValue('')
+    setGroups([])
+    setShowGroupForm(false)
+    resetGroupForm()
+  }, [])
+
+  const resetGroupForm = useCallback(() => {
+    setGroupName('')
+    setGroupSubject('')
+    setGroupCapacity(20)
+    setGroupPrice(0)
+    setGroupClassType('weekly')
+    setGroupDedicatedTime('')
+    setGroupNotes('')
   }, [])
 
   const handleClose = useCallback(() => {
@@ -142,16 +184,39 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
     onClose()
   }, [onClose, resetForm])
 
+  const handleAddGroup = useCallback(() => {
+    if (!groupName.trim()) return
+    const newGroup: TeacherGroup = {
+      id: `group-${Date.now()}`,
+      name: groupName.trim(),
+      subject: groupSubject,
+      capacity: groupCapacity,
+      price_da: groupPrice,
+      class_type: groupClassType,
+      dedicated_time: groupDedicatedTime.trim(),
+      notes: groupNotes.trim(),
+    }
+    setGroups(prev => [...prev, newGroup])
+    resetGroupForm()
+    setShowGroupForm(false)
+  }, [groupName, groupSubject, groupCapacity, groupPrice, groupClassType, groupDedicatedTime, groupNotes, resetGroupForm])
+
+  const handleRemoveGroup = useCallback((groupId: string) => {
+    setGroups(prev => prev.filter(g => g.id !== groupId))
+  }, [])
+
   const handleSubmit = useCallback(async () => {
     if (!firstName.trim()) { toast.error('Name is required'); return }
     if (!phone.trim()) { toast.error('Phone is required'); return }
+    if (selectedSubjectIds.length === 0) { toast.error('At least one subject is required'); return }
     setIsSubmitting(true)
     try {
+      // 1. Create teacher
       const payload: Record<string, unknown> = {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         phone: phone.trim() || undefined,
-        subject: subject || undefined,
+        subject_ids: selectedSubjectIds,
         contract_type: contractType,
         notes: notes.trim() || undefined,
       }
@@ -162,23 +227,40 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
         payload.per_student_rate = rate ? Number(rate) : 0
       }
 
-      // Commission model fields
       payload.commission_type = commissionType
       payload.commission_value = commissionValue ? Number(commissionValue) : 0
 
-      await api.post('/teachers', payload)
+      const { data: teacherData } = await api.post('/teachers', payload)
+
+      // 2. Create groups for this teacher
+      for (const group of groups) {
+        try {
+          await api.post('/classes', {
+            name: group.name,
+            subject: group.subject || undefined,
+            teacher_id: teacherData.id,
+            capacity: group.capacity,
+            price_da: group.price_da || undefined,
+            class_type: group.class_type,
+            dedicated_time: group.dedicated_time || undefined,
+            notes: group.notes || undefined,
+          })
+        } catch {
+          // Group creation failed, continue with others
+        }
+      }
+
       resetForm()
       onAdded()
       onClose()
     } catch {
-      // Still close — optimistic fallback
       resetForm()
       onAdded()
       onClose()
     } finally {
       setIsSubmitting(false)
     }
-  }, [firstName, lastName, phone, subject, contractType, rate, notes, commissionType, commissionValue, resetForm, onAdded, onClose])
+  }, [firstName, lastName, phone, selectedSubjectIds, contractType, rate, notes, commissionType, commissionValue, groups, resetForm, onAdded, onClose])
 
   if (!isOpen) return null
 
@@ -190,13 +272,13 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
     >
       <div
         className={cn(
-          'w-full max-w-md mx-4 p-6 rounded-2xl',
+          'w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto p-6 rounded-2xl',
           'bg-[var(--card-bg)] border border-[var(--glass-border)]',
           'shadow-2xl animate-fade-in',
         )}
       >
         {/* ── Header ──────────────────────────── */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-5 sticky top-0 bg-[var(--card-bg)] pb-2 z-10">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[var(--gold-soft)] flex items-center justify-center">
               <UserPlus size={16} className="text-[var(--gold)]" />
@@ -258,36 +340,43 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
             </div>
           </Field>
 
-          {/* Subject — custom dropdown */}
-          <Field label="Subject">
+          {/* Subjects — multi-select dropdown */}
+          <Field label="Subjects" required>
             <div className="relative" ref={dropdownRef}>
               <button
                 type="button"
                 onClick={() => { setDropdownOpen((o) => !o); setSearchTerm('') }}
                 className={cn(
                   inputCls,
-                  'flex items-center gap-2 text-left',
+                  'flex items-center gap-2 text-left min-h-[38px]',
                   dropdownOpen && 'ring-2 ring-[var(--gold)]/30',
                 )}
               >
                 <BookOpen size={14} className="text-[var(--muted)] shrink-0" />
-                {selectedSubject ? (
-                  <span className="flex items-center gap-2 truncate">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: selectedSubject.color }}
-                    />
-                    <span className="truncate">{selectedSubject.name}</span>
-                  </span>
+                {selectedSubjectIds.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 flex-1">
+                    {selectedSubjectIds.map(id => {
+                      const s = subjects.find(sub => sub.id === id)
+                      if (!s) return null
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--glass)] border border-[var(--glass-border)]"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                          {s.name}
+                        </span>
+                      )
+                    })}
+                  </div>
                 ) : (
-                  <span className="text-[var(--muted)]">Select subject…</span>
+                  <span className="text-[var(--muted)]">Select subjects...</span>
                 )}
                 <ChevronDown size={14} className={cn('text-[var(--muted)] ml-auto shrink-0 transition-transform', dropdownOpen && 'rotate-180')} />
               </button>
 
               {dropdownOpen && (
                 <div className="absolute z-50 mt-1.5 w-full rounded-xl bg-[var(--bg)] border border-[var(--glass-border)] shadow-xl overflow-hidden animate-fade-in">
-                  {/* Search */}
                   <div className="relative border-b border-[var(--glass-border)]">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
                     <input
@@ -295,7 +384,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
                       type="text"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search subjects…"
+                      placeholder="Search subjects..."
                       className={cn(
                         'w-full pl-9 pr-3 py-2 text-sm text-[var(--text)]',
                         'bg-transparent outline-none',
@@ -303,46 +392,48 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
                       )}
                     />
                   </div>
-
-                  {/* Options */}
                   <div className="max-h-48 overflow-y-auto py-1">
                     {subjectsLoading ? (
                       <div className="px-3 py-4 text-center text-xs text-[var(--muted)]">
-                        Loading subjects…
+                        Loading subjects...
                       </div>
                     ) : filteredSubjects.length === 0 ? (
                       <div className="px-3 py-4 text-center text-xs text-[var(--muted)]">
                         {subjects.length === 0 ? 'No subjects yet' : 'No match'}
                       </div>
                     ) : (
-                      filteredSubjects.map((s) => (
-                        <button
-                          key={s.name}
-                          type="button"
-                          onClick={() => {
-                            setSubject(s.name)
-                            setDropdownOpen(false)
-                            setSearchTerm('')
-                          }}
-                          className={cn(
-                            'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left',
-                            'hover:bg-[var(--glass)] transition-colors duration-100',
-                            subject === s.name && 'bg-[var(--gold-soft)] text-[var(--text)] font-medium',
-                            subject !== s.name && 'text-[var(--text)] hover:text-[var(--text)]',
-                          )}
-                        >
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: s.color }}
-                          />
-                          <span className="truncate">{s.name}</span>
-                        </button>
-                      ))
+                      filteredSubjects.map((s) => {
+                        const isSelected = selectedSubjectIds.includes(s.id || '')
+                        return (
+                          <button
+                            key={s.name}
+                            type="button"
+                            onClick={() => s.id && toggleSubject(s.id)}
+                            className={cn(
+                              'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left',
+                              'hover:bg-[var(--glass)] transition-colors duration-100',
+                              isSelected && 'bg-[var(--gold-soft)]',
+                            )}
+                          >
+                            <div className={cn(
+                              'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all',
+                              isSelected ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--glass-border)]',
+                            )}>
+                              {isSelected && <span className="text-white text-[10px]">✓</span>}
+                            </div>
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                            <span className="truncate">{s.name}</span>
+                          </button>
+                        )
+                      })
                     )}
                   </div>
                 </div>
               )}
             </div>
+            {selectedSubjectIds.length === 0 && (
+              <p className="text-[10px] text-[var(--red)] mt-1">At least one subject is required</p>
+            )}
           </Field>
 
           {/* Contract Type Toggle */}
@@ -369,10 +460,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
           </Field>
 
           {/* Rate */}
-          <Field
-            label={contractType === 'hourly' ? 'Hourly Rate' : 'Per Student Rate'}
-            required
-          >
+          <Field label={contractType === 'hourly' ? 'Hourly Rate' : 'Per Student Rate'} required>
             <div className="relative">
               <input
                 type="number"
@@ -393,17 +481,12 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
             <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-3">
               Commission Model
             </p>
-
-            {/* Commission Type Toggle — 3 options */}
             <div className="flex gap-2 mb-3">
               {COMMISSION_TYPES.map((type) => (
                 <button
                   key={type}
                   type="button"
-                  onClick={() => {
-                    setCommissionType(type)
-                    setCommissionValue('')
-                  }}
+                  onClick={() => { setCommissionType(type); setCommissionValue('') }}
                   className={cn(
                     'flex-1 py-2 rounded-xl text-[11px] font-medium transition-all duration-150 leading-tight',
                     commissionType === type
@@ -412,19 +495,9 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
                   )}
                 >
                   <span className="block">{COMMISSION_TYPE_LABELS[type]}</span>
-                  <span className={cn(
-                    'block text-[10px] mt-0.5',
-                    commissionType === type ? 'text-[var(--gold)]/70' : 'text-[var(--muted)]/60',
-                  )}>
-                    {type === 'PERCENTAGE' && '% of gross revenue'}
-                    {type === 'FLAT_HOURLY' && 'DA per hour'}
-                    {type === 'FIXED_SESSION' && 'Flat DA per session'}
-                  </span>
                 </button>
               ))}
             </div>
-
-            {/* Commission Value Input */}
             <Field label="Commission Value">
               <div className="relative">
                 <input
@@ -433,11 +506,8 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
                   onChange={(e) => {
                     const val = e.target.value
                     if (commissionType === 'PERCENTAGE') {
-                      // Clamp 0–100 for percentage
                       const num = Number(val)
-                      if (val === '' || (num >= 0 && num <= 100)) {
-                        setCommissionValue(val)
-                      }
+                      if (val === '' || (num >= 0 && num <= 100)) setCommissionValue(val)
                     } else {
                       setCommissionValue(val)
                     }
@@ -459,15 +529,173 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optional notes about this teacher…"
+              placeholder="Optional notes about this teacher..."
               rows={2}
               className={cn(inputCls, 'resize-none')}
             />
           </Field>
+
+          {/* ── Groups Section ──────────────────── */}
+          <div className="pt-2 border-t border-[var(--glass-border)]">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                Groups (Optional)
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowGroupForm(true)}
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium',
+                  'text-[var(--gold)] hover:bg-[var(--gold-soft)]',
+                  'transition-colors duration-150',
+                )}
+              >
+                <Plus size={12} />
+                Add Group
+              </button>
+            </div>
+
+            {/* Existing groups */}
+            {groups.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {groups.map((group) => (
+                  <div
+                    key={group.id}
+                    className={cn(
+                      'flex items-center justify-between px-3 py-2 rounded-lg',
+                      'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-[var(--text)] truncate">{group.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {group.subject && (
+                          <span className="text-[10px] text-[var(--muted)]">{group.subject}</span>
+                        )}
+                        <span className="text-[10px] text-[var(--muted)]">Cap: {group.capacity}</span>
+                        {group.price_da > 0 && (
+                          <span className="text-[10px] text-[var(--muted)]">{group.price_da} DA</span>
+                        )}
+                        <span className={cn(
+                          'text-[10px] font-medium px-1.5 py-0.5 rounded-full',
+                          group.class_type === 'weekly'
+                            ? 'bg-[var(--emerald-soft)] text-[var(--emerald)]'
+                            : 'bg-[var(--gold-soft)] text-[var(--gold)]',
+                        )}>
+                          {group.class_type === 'weekly' ? 'Weekly' : 'Temp'}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveGroup(group.id)}
+                      className="p-1 rounded text-[var(--muted)] hover:text-[var(--red)] hover:bg-[var(--red)]/10 transition-colors"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Inline group form */}
+            {showGroupForm && (
+              <div className={cn(
+                'p-3 rounded-lg space-y-2',
+                'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+              )}>
+                <input
+                  type="text"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Group name (e.g. Math - CM2)"
+                  className={inputCls}
+                  autoFocus
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={groupSubject}
+                    onChange={(e) => setGroupSubject(e.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="">Subject...</option>
+                    {subjects.map(s => (
+                      <option key={s.name} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    value={groupCapacity}
+                    onChange={(e) => setGroupCapacity(Number(e.target.value))}
+                    placeholder="Capacity"
+                    min={1}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    value={groupPrice || ''}
+                    onChange={(e) => setGroupPrice(Number(e.target.value))}
+                    placeholder="Price (DA)"
+                    min={0}
+                    className={inputCls}
+                  />
+                  <div className="flex rounded-lg overflow-hidden border border-[var(--glass-border)]">
+                    {(['weekly', 'temporary'] as const).map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setGroupClassType(t)}
+                        className={cn(
+                          'flex-1 py-1.5 text-[11px] font-medium transition-all',
+                          groupClassType === t
+                            ? 'bg-[var(--gold)] text-white'
+                            : 'bg-[var(--input-bg)] text-[var(--muted)]',
+                        )}
+                      >
+                        {t === 'weekly' ? 'Weekly' : 'Temp'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  value={groupDedicatedTime}
+                  onChange={(e) => setGroupDedicatedTime(e.target.value)}
+                  placeholder="Dedicated time (e.g. Mon/Wed 10:00-12:00)"
+                  className={inputCls}
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowGroupForm(false); resetGroupForm() }}
+                    className="flex-1 py-1.5 rounded-lg text-xs font-medium bg-[var(--glass)] text-[var(--muted)]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddGroup}
+                    disabled={!groupName.trim()}
+                    className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] disabled:opacity-40"
+                  >
+                    Add Group
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!showGroupForm && groups.length === 0 && (
+              <p className="text-xs text-[var(--muted)] italic">
+                No groups added. Groups will be created as classes.
+              </p>
+            )}
+          </div>
         </div>
 
         {/* ── Actions ──────────────────────────── */}
-        <div className="flex gap-3 mt-6">
+        <div className="flex gap-3 mt-6 sticky bottom-0 bg-[var(--card-bg)] pt-3">
           <button
             onClick={handleClose}
             className={cn(
@@ -480,7 +708,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!firstName.trim() || !lastName.trim() || !rate || isSubmitting}
+            disabled={!firstName.trim() || !lastName.trim() || selectedSubjectIds.length === 0 || isSubmitting}
             className={cn(
               'flex-1 py-2.5 rounded-xl text-sm font-semibold text-white',
               'bg-gradient-to-r from-[#b3872a] to-[#0f6b4d]',
@@ -489,7 +717,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdded }: AddTeacher
               'transition-all duration-150',
             )}
           >
-            {isSubmitting ? 'Adding…' : 'Add Teacher'}
+            {isSubmitting ? 'Adding...' : 'Add Teacher'}
           </button>
         </div>
       </div>

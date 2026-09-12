@@ -126,7 +126,7 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
   const [editFirstName, setEditFirstName] = useState('')
   const [editLastName, setEditLastName] = useState('')
   const [editPhone, setEditPhone] = useState('')
-  const [editSubject, setEditSubject] = useState('')
+  const [editSubjectIds, setEditSubjectIds] = useState<string[]>([])
   const [editContractType, setEditContractType] = useState<'hourly' | 'per_student'>('hourly')
   const [editRate, setEditRate] = useState('')
   const [editCommissionType, setEditCommissionType] = useState<CommissionType>('PERCENTAGE')
@@ -135,7 +135,7 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
   const [editSaving, setEditSaving] = useState(false)
 
   /* ── Subject dropdown for edit mode ── */
-  const [subjects, setSubjects] = useState<{ name: string; color: string }[]>([])
+  const [subjects, setSubjects] = useState<{ id: string; name: string; color: string }[]>([])
   const [subjectsLoading, setSubjectsLoading] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -207,7 +207,7 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
     setEditFirstName(teacher.first_name)
     setEditLastName(teacher.last_name)
     setEditPhone(teacher.phone ?? '')
-    setEditSubject(teacher.subject ?? '')
+    setEditSubjectIds((teacher.subjects ?? []).map((s: any) => s.id).filter(Boolean))
     setEditContractType(teacher.contract_type)
     setEditRate(
       teacher.contract_type === 'hourly'
@@ -235,7 +235,7 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
         first_name: editFirstName.trim(),
         last_name: editLastName.trim(),
         phone: editPhone.trim() || undefined,
-        subject: editSubject || undefined,
+        subject_ids: editSubjectIds,
         contract_type: editContractType,
         notes: editNotes.trim() || undefined,
       }
@@ -256,13 +256,19 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
     } finally {
       setEditSaving(false)
     }
-  }, [teacher, editFirstName, editLastName, editPhone, editSubject, editContractType, editRate, editCommissionType, editCommissionValue, editNotes, onUpdated])
+  }, [teacher, editFirstName, editLastName, editPhone, editSubjectIds, editContractType, editRate, editCommissionType, editCommissionValue, editNotes, onUpdated])
 
   /* ── Filtered subjects for edit dropdown ── */
   const filteredSubjects = subjects.filter((s) =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()),
   )
-  const selectedEditSubject = subjects.find((s) => s.name === editSubject)
+  const toggleEditSubject = useCallback((subjectId: string) => {
+    setEditSubjectIds(prev =>
+      prev.includes(subjectId)
+        ? prev.filter(id => id !== subjectId)
+        : [...prev, subjectId]
+    )
+  }, [])
 
   /* ── Reset create class state when drawer closes ── */
   useEffect(() => {
@@ -467,16 +473,21 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                     )}
                   >
                     <BookOpen size={14} className="text-[var(--muted)] shrink-0" />
-                    {selectedEditSubject ? (
-                      <span className="flex items-center gap-2 truncate">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: selectedEditSubject.color }}
-                        />
-                        <span className="truncate">{selectedEditSubject.name}</span>
-                      </span>
+                    {editSubjectIds.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 flex-1">
+                        {editSubjectIds.map(id => {
+                          const s = subjects.find(sub => sub.id === id)
+                          if (!s) return null
+                          return (
+                            <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--glass)] border border-[var(--glass-border)]">
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                              {s.name}
+                            </span>
+                          )
+                        })}
+                      </div>
                     ) : (
-                      <span className="text-[var(--muted)]">Select subject…</span>
+                      <span className="text-[var(--muted)]">Select subjects…</span>
                     )}
                     <ChevronDown size={14} className={cn('text-[var(--muted)] ml-auto shrink-0 transition-transform', dropdownOpen && 'rotate-180')} />
                   </button>
@@ -511,29 +522,30 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                             {subjects.length === 0 ? 'No subjects yet' : 'No match'}
                           </div>
                         ) : (
-                          filteredSubjects.map((s) => (
-                            <button
-                              key={s.name}
-                              type="button"
-                              onClick={() => {
-                                setEditSubject(s.name)
-                                setDropdownOpen(false)
-                                setSearchTerm('')
-                              }}
-                              className={cn(
-                                'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left',
-                                'hover:bg-[var(--glass)] transition-colors duration-100',
-                                editSubject === s.name && 'bg-[var(--gold-soft)] text-[var(--text)] font-medium',
-                                editSubject !== s.name && 'text-[var(--text)]',
-                              )}
-                            >
-                              <span
-                                className="w-2.5 h-2.5 rounded-full shrink-0"
-                                style={{ backgroundColor: s.color }}
-                              />
-                              <span className="truncate">{s.name}</span>
-                            </button>
-                          ))
+                          filteredSubjects.map((s) => {
+                            const isSelected = editSubjectIds.includes(s.id)
+                            return (
+                              <button
+                                key={s.name}
+                                type="button"
+                                onClick={() => toggleEditSubject(s.id)}
+                                className={cn(
+                                  'w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left',
+                                  'hover:bg-[var(--glass)] transition-colors duration-100',
+                                  isSelected && 'bg-[var(--gold-soft)]',
+                                )}
+                              >
+                                <div className={cn(
+                                  'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all',
+                                  isSelected ? 'bg-[var(--gold)] border-[var(--gold)]' : 'border-[var(--glass-border)]',
+                                )}>
+                                  {isSelected && <span className="text-white text-[10px]">✓</span>}
+                                </div>
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                                <span className="truncate">{s.name}</span>
+                              </button>
+                            )
+                          })
                         )}
                       </div>
                     </div>
@@ -685,7 +697,7 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
               </div>
             </div>
           ) : (
-          {/* Teacher Info */}
+          <>
           <div className="flex items-start gap-4">
             <div
               className={cn(
@@ -735,12 +747,15 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
                   </span>
                 )}
 
-                {teacher.subject && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--glass)] border border-[var(--glass-border)] text-[var(--text)] gap-1">
-                    <BookOpen size={10} />
-                    {teacher.subject}
+                {(teacher.subjects ?? []).length > 0 && (teacher.subjects ?? []).map((s: any) => (
+                  <span
+                    key={s.id ?? s.name}
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--glass)] border border-[var(--glass-border)] text-[var(--text)] gap-1"
+                  >
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                    {s.name}
                   </span>
-                )}
+                ))}
               </div>
             </div>
           </div>
@@ -1020,6 +1035,7 @@ export default function TeacherDrawer({ teacher, isOpen, onClose, onDelete, onCl
               </p>
             </Section>
           )}
+          </>
           )}
         </div>
 

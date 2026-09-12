@@ -193,6 +193,8 @@ def list_classes():
             "enrolled_count": enrolled_count,
             "status_color": status_color,
             "notes": cls.notes,
+            "class_type": cls.class_type,
+            "dedicated_time": cls.dedicated_time,
         }
         entry.update(_group_payload(cls))
         result.append(entry)
@@ -239,10 +241,45 @@ def get_class(class_id):
         "capacity": cls.capacity,
         "enrolled_count": enrolled_count,
         "notes": cls.notes,
+        "class_type": cls.class_type,
+        "dedicated_time": cls.dedicated_time,
         "schedules": schedule_data,
     }
     payload.update(_group_payload(cls))
     return jsonify(payload), 200
+
+
+@classes_bp.route("/classes/<class_id>/students", methods=["GET"])
+@jwt_required()
+@tenant_required
+def list_class_students(class_id):
+    """List all students enrolled in a specific class."""
+    from flask import g
+    from app.models.student import Student, Enrollment
+
+    cls = Class.query.filter_by(id=class_id, academy_id=g.current_academy_id).first()
+    if not cls:
+        return jsonify({"error": "Class not found"}), 404
+
+    enrollments = Enrollment.query.filter_by(class_id=class_id, status="active").all()
+    student_ids = [e.student_id for e in enrollments]
+    students = Student.query.filter(Student.id.in_(student_ids)).all() if student_ids else []
+
+    return jsonify({
+        "students": [
+            {
+                "id": s.id,
+                "full_name": s.full_name,
+                "first_name": s.first_name,
+                "last_name": s.last_name,
+                "phone": s.phone,
+                "status": s.status,
+                "enrollment_id": next((e.id for e in enrollments if e.student_id == s.id), None),
+            }
+            for s in students
+        ],
+        "total": len(students),
+    }), 200
 
 
 @classes_bp.route("/classes", methods=["POST"])
@@ -271,6 +308,8 @@ def create_class():
         teacher_id=data.get("teacher_id"),
         capacity=data.get("capacity", 30),
         notes=data.get("notes"),
+        class_type=data.get("class_type", "weekly"),
+        dedicated_time=data.get("dedicated_time"),
     )
     _apply_group_fields(cls, data)
     db.session.add(cls)
@@ -308,7 +347,7 @@ def update_class(class_id):
     if not data:
         return jsonify({"error": "Request body is required"}), 400
 
-    LEGACY_FIELDS = ("name", "subject", "color", "teacher_id", "capacity", "notes")
+    LEGACY_FIELDS = ("name", "subject", "color", "teacher_id", "capacity", "notes", "class_type", "dedicated_time")
     for field in LEGACY_FIELDS:
         if field in data:
             setattr(cls, field, data[field])
@@ -606,7 +645,7 @@ def delete_schedule(class_id, schedule_id):
 @jwt_required()
 @tenant_required
 def list_subjects():
-    """List all subjects for the calendar palette."""
+    """List all subjects for the calendar palette and settings."""
     from flask import g
     subjects = Subject.query.filter_by(academy_id=g.current_academy_id).all()
 
@@ -614,13 +653,13 @@ def list_subjects():
     classes = Class.query.filter_by(academy_id=g.current_academy_id).all()
     seen = {s.name for s in subjects}
     palette = [
-        {"name": s.name, "color": s.color} for s in subjects
+        {"id": s.id, "name": s.name, "color": s.color} for s in subjects
     ]
 
     for cls in classes:
         if cls.subject and cls.subject not in seen:
             seen.add(cls.subject)
-            palette.append({"name": cls.subject, "color": cls.color or "#b3872a"})
+            palette.append({"id": None, "name": cls.subject, "color": cls.color or "#b3872a"})
 
     return jsonify({"subjects": palette}), 200
 
@@ -646,4 +685,19 @@ def create_subject():
     )
     db.session.add(subject)
     db.session.commit()
-    return jsonify({"name": subject.name, "color": subject.color}), 201
+    return jsonify({"id": subject.id, "name": subject.name, "color": subject.color}), 201
+
+
+@classes_bp.route("/subjects/<subject_id>", methods=["DELETE"])
+@jwt_required()
+@tenant_required
+def delete_subject(subject_id):
+    """Delete a custom subject by ID."""
+    from flask import g
+    subject = Subject.query.filter_by(id=subject_id, academy_id=g.current_academy_id).first()
+    if not subject:
+        return jsonify({"error": "Subject not found"}), 404
+
+    db.session.delete(subject)
+    db.session.commit()
+    return jsonify({"message": "Subject deleted"}), 200

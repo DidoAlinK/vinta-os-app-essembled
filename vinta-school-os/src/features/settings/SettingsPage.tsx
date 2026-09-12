@@ -13,6 +13,7 @@ import BillingConfig from './BillingConfig'
 import Automations from './Automations'
 import DataExport from './DataExport'
 import DangerZone from './DangerZone'
+import SubjectsSettings from './SubjectsSettings'
 import {
   Palette,
   User,
@@ -22,6 +23,7 @@ import {
   Zap,
   Download,
   AlertTriangle,
+  BookOpen,
   ChevronRight,
   Menu,
   X,
@@ -40,6 +42,7 @@ const SECTIONS: SettingsSection[] = [
   { id: 'appearance', label: 'Appearance', icon: <Palette className="w-4 h-4" />, roles: ['owner', 'staff'] },
   { id: 'account', label: 'My Account', icon: <User className="w-4 h-4" />, roles: ['owner', 'staff'] },
   { id: 'academy', label: 'Academy Profile', icon: <Building2 className="w-4 h-4" />, roles: ['owner'] },
+  { id: 'subjects', label: 'Subjects', icon: <BookOpen className="w-4 h-4" />, roles: ['owner'] },
   { id: 'staff', label: 'Staff & Roles', icon: <Users className="w-4 h-4" />, roles: ['owner'] },
   { id: 'billing', label: 'Billing Config', icon: <CreditCard className="w-4 h-4" />, roles: ['owner'] },
   { id: 'automations', label: 'Automations', icon: <Zap className="w-4 h-4" />, roles: ['owner'] },
@@ -322,6 +325,9 @@ export function SettingsPage() {
           )}
           {activeSection === 'academy' && (
             <AcademyProfile academy={effectiveAcademy} onUpdate={handleUpdateAcademy} />
+          )}
+          {activeSection === 'subjects' && (
+            <SubjectsSettings />
           )}
           {activeSection === 'staff' && (
             <StaffRoles

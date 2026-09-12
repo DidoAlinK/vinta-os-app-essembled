@@ -76,6 +76,10 @@ class Teacher(db.Model):
         "TeacherHoursLog", back_populates="teacher", lazy="dynamic",
         cascade="all, delete-orphan"
     )
+    subject_links = relationship(
+        "TeacherSubject", back_populates="teacher", lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
 
     @property
     def full_name(self) -> str:
@@ -83,6 +87,26 @@ class Teacher(db.Model):
 
     def __repr__(self):
         return f"<Teacher {self.full_name}>"
+
+
+class TeacherSubject(db.Model):
+    """Junction table for teacher-subject many-to-many relationship."""
+
+    __tablename__ = "teacher_subjects"
+
+    teacher_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("teachers.id", ondelete="CASCADE"), primary_key=True
+    )
+    subject_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("subjects.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    # Relationships
+    teacher = relationship("Teacher", back_populates="subject_links")
+    subject = relationship("Subject")
+
+    def __repr__(self):
+        return f"<TeacherSubject {self.teacher_id} -> {self.subject_id}>"
 
 
 class TeacherPayroll(db.Model):

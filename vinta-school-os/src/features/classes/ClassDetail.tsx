@@ -1,7 +1,7 @@
 /**
  * Vinta School OS — Class Detail
  * Detailed view of a single class with schedule blocks and enrolled students.
- * Includes editable header, weekly schedule grid, and student list.
+ * Full edit mode, bulk enrollment, and real student data from API.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -13,19 +13,21 @@ import {
   Clock,
   Users,
   GraduationCap,
+  UserPlus,
+  Check,
+  Search,
 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import api from '../../lib/api'
+import { toast } from '../../stores/uiStore'
 import {
-  HOUR_HEIGHT,
   SUBJECT_COLORS,
 } from '../../lib/constants'
 import {
   formatTime,
-  getDayName,
   getInitials,
 } from '../../lib/formatters'
-import type { Class } from '../../types/class'
+import type { Class, BillingModel, Schedule } from '../../types/class'
 
 // ============================================
 // Props
@@ -36,6 +38,7 @@ export interface ClassDetailProps {
   isOpen: boolean
   onClose: () => void
   onDelete?: (id: string) => void
+  onUpdated?: () => void
 }
 
 // ============================================
@@ -43,7 +46,7 @@ export interface ClassDetailProps {
 // ============================================
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const WEEKDAY_INDICES = [1, 2, 3, 4, 5] // Mon–Fri for the schedule grid
+const WEEKDAY_INDICES = [1, 2, 3, 4, 5] // Mon-Fri for the schedule grid
 
 const COLOR_PRESETS = [
   '#b3872a',
@@ -55,6 +58,22 @@ const COLOR_PRESETS = [
   '#ec4899',
   '#14b8a6',
 ]
+
+const SUBJECT_OPTIONS = ['Math', 'French', 'English', 'Science', 'History', 'PE', 'Art', 'Music'] as const
+
+// ============================================
+// Types
+// ============================================
+
+interface EnrolledStudent {
+  id: string
+  full_name: string
+  first_name: string
+  last_name: string
+  phone?: string
+  status: string
+  enrollment_id?: string
+}
 
 // ============================================
 // Helpers
@@ -72,7 +91,7 @@ function timeToMinutes(time: string): number {
 
 /** Get the min/max hours from a set of schedules */
 function getScheduleBounds(
-  schedules: Class['schedules'],
+  schedules: Schedule[],
 ): { minHour: number; maxHour: number } {
   if (!schedules || schedules.length === 0) return { minHour: 8, maxHour: 17 }
 
@@ -91,11 +110,37 @@ function getScheduleBounds(
 // Component
 // ============================================
 
-export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDetailProps) {
+export default function ClassDetail({ cls, isOpen, onClose, onDelete, onUpdated }: ClassDetailProps) {
+  // ── Edit state ──
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [editSubject, setEditSubject] = useState('')
   const [editColor, setEditColor] = useState('')
+  const [editCapacity, setEditCapacity] = useState(20)
+  const [editTeacherId, setEditTeacherId] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editPriceDa, setEditPriceDa] = useState(0)
+  const [editBillingModel, setEditBillingModel] = useState<BillingModel>('CREDIT_BASED')
+  const [editCreditsPerCycle, setEditCreditsPerCycle] = useState(4)
+  const [editGroupName, setEditGroupName] = useState('')
+  const [editAcademicLevel, setEditAcademicLevel] = useState('')
+  const [editClassType, setEditClassType] = useState<'weekly' | 'temporary'>('weekly')
+  const [editDedicatedTime, setEditDedicatedTime] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  // ── Teachers ──
+  const [teachers, setTeachers] = useState<Array<{ id: string; name: string }>>([])
+
+  // ── Enrolled students ──
+  const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([])
+  const [loadingStudents, setLoadingStudents] = useState(false)
+
+  // ── Bulk enrollment ──
+  const [showBulkEnroll, setShowBulkEnroll] = useState(false)
+  const [allStudents, setAllStudents] = useState<Array<{ id: string; full_name: string; phone?: string }>>([])
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
+  const [studentSearch, setStudentSearch] = useState('')
+  const [enrolling, setEnrolling] = useState(false)
 
   // Sync edit state when class changes
   useEffect(() => {
@@ -103,13 +148,52 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDet
       setEditName(cls.name)
       setEditSubject(cls.subject)
       setEditColor(cls.color || '')
+      setEditCapacity(cls.capacity)
+      setEditTeacherId(cls.teacher_id || '')
+      setEditNotes(cls.notes || '')
+      setEditPriceDa(cls.price_da || 0)
+      setEditBillingModel(cls.billing_model || 'CREDIT_BASED')
+      setEditCreditsPerCycle(cls.credits_per_cycle || 4)
+      setEditGroupName(cls.group_name || '')
+      setEditAcademicLevel(cls.academic_level || '')
+      setEditClassType(cls.class_type || 'weekly')
+      setEditDedicatedTime(cls.dedicated_time || '')
     }
     setIsEditing(false)
   }, [cls?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const color = cls ? resolveColor(cls) : '#75726a'
 
-  // ── Schedule grid computation ─────────────────
+  // ── Fetch teachers ──
+  useEffect(() => {
+    if (!isOpen) return
+    api.get('/teachers')
+      .then(({ data }) => {
+        const list = data.teachers ?? data ?? []
+        setTeachers(list.map((t: any) => ({ id: t.id, name: t.full_name || t.name || `${t.first_name} ${t.last_name}` })))
+      })
+      .catch(() => {})
+  }, [isOpen])
+
+  // ── Fetch enrolled students ──
+  const fetchEnrolledStudents = useCallback(async () => {
+    if (!cls) return
+    setLoadingStudents(true)
+    try {
+      const { data } = await api.get(`/classes/${cls.id}/students`)
+      setEnrolledStudents(data.students ?? [])
+    } catch {
+      setEnrolledStudents([])
+    } finally {
+      setLoadingStudents(false)
+    }
+  }, [cls])
+
+  useEffect(() => {
+    if (isOpen && cls) fetchEnrolledStudents()
+  }, [isOpen, cls, fetchEnrolledStudents])
+
+  // ── Schedule grid computation ──
 
   const { minHour, maxHour } = useMemo(
     () => getScheduleBounds(cls?.schedules || []),
@@ -124,7 +208,7 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDet
 
   // Group schedules by weekday
   const schedulesByDay = useMemo(() => {
-    const map = new Map<number, Class['schedules']>()
+    const map = new Map<number, Schedule[]>()
     for (const day of WEEKDAY_INDICES) map.set(day, [])
     if (cls?.schedules) {
       for (const s of cls.schedules) {
@@ -135,13 +219,23 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDet
     return map
   }, [cls?.schedules])
 
-  // ── Handlers ──────────────────────────────────
+  // ── Handlers ──
 
   const handleStartEdit = useCallback(() => {
     if (!cls) return
     setEditName(cls.name)
     setEditSubject(cls.subject)
     setEditColor(cls.color || '')
+    setEditCapacity(cls.capacity)
+    setEditTeacherId(cls.teacher_id || '')
+    setEditNotes(cls.notes || '')
+    setEditPriceDa(cls.price_da || 0)
+    setEditBillingModel(cls.billing_model || 'CREDIT_BASED')
+    setEditCreditsPerCycle(cls.credits_per_cycle || 4)
+    setEditGroupName(cls.group_name || '')
+    setEditAcademicLevel(cls.academic_level || '')
+    setEditClassType(cls.class_type || 'weekly')
+    setEditDedicatedTime(cls.dedicated_time || '')
     setIsEditing(true)
   }, [cls])
 
@@ -151,13 +245,47 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDet
       setEditName(cls.name)
       setEditSubject(cls.subject)
       setEditColor(cls.color || '')
+      setEditCapacity(cls.capacity)
+      setEditTeacherId(cls.teacher_id || '')
+      setEditNotes(cls.notes || '')
+      setEditPriceDa(cls.price_da || 0)
+      setEditBillingModel(cls.billing_model || 'CREDIT_BASED')
+      setEditCreditsPerCycle(cls.credits_per_cycle || 4)
+      setEditGroupName(cls.group_name || '')
+      setEditAcademicLevel(cls.academic_level || '')
+      setEditClassType(cls.class_type || 'weekly')
+      setEditDedicatedTime(cls.dedicated_time || '')
     }
   }, [cls])
 
-  const handleSaveEdit = useCallback(() => {
-    // In a real app, this would call an API. For now, just close edit mode.
-    setIsEditing(false)
-  }, [])
+  const handleSaveEdit = useCallback(async () => {
+    if (!cls || !editName.trim()) return
+    setSaving(true)
+    try {
+      await api.put(`/classes/${cls.id}`, {
+        name: editName.trim(),
+        subject: editSubject,
+        color: editColor,
+        capacity: editCapacity,
+        teacher_id: editTeacherId || null,
+        notes: editNotes.trim() || null,
+        price_da: editPriceDa || null,
+        billing_model: editBillingModel,
+        credits_per_cycle: editBillingModel === 'CREDIT_BASED' ? editCreditsPerCycle : undefined,
+        group_name: editGroupName.trim() || undefined,
+        academic_level: editAcademicLevel.trim() || undefined,
+        class_type: editClassType,
+        dedicated_time: editDedicatedTime.trim() || null,
+      })
+      toast.success('Class updated', 'Changes have been saved.')
+      setIsEditing(false)
+      onUpdated?.()
+    } catch {
+      toast.error('Update failed', 'Could not save changes.')
+    } finally {
+      setSaving(false)
+    }
+  }, [cls, editName, editSubject, editColor, editCapacity, editTeacherId, editNotes, editPriceDa, editBillingModel, editCreditsPerCycle, editGroupName, editAcademicLevel, editClassType, editDedicatedTime, onUpdated])
 
   const handleDelete = useCallback(async () => {
     if (!cls) return
@@ -168,7 +296,64 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDet
     onClose()
   }, [cls, onDelete, onClose])
 
-  // ── Render ────────────────────────────────────
+  // ── Bulk enrollment handlers ──
+
+  const openBulkEnroll = useCallback(async () => {
+    setShowBulkEnroll(true)
+    setSelectedStudentIds([])
+    setStudentSearch('')
+    try {
+      const { data } = await api.get('/students')
+      const students = data.students ?? data ?? []
+      // Filter out already-enrolled students
+      const enrolledIds = new Set(enrolledStudents.map(s => s.id))
+      setAllStudents(students.filter((s: any) => !enrolledIds.has(s.id)).map((s: any) => ({
+        id: s.id,
+        full_name: s.full_name || `${s.first_name} ${s.last_name}`,
+        phone: s.phone,
+      })))
+    } catch {
+      setAllStudents([])
+    }
+  }, [enrolledStudents])
+
+  const toggleStudentSelection = useCallback((id: string) => {
+    setSelectedStudentIds(prev =>
+      prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+    )
+  }, [])
+
+  const handleBulkEnroll = useCallback(async () => {
+    if (!cls || selectedStudentIds.length === 0) return
+    setEnrolling(true)
+    try {
+      const { data } = await api.post('/students/bulk-enroll', {
+        student_ids: selectedStudentIds,
+        class_id: cls.id,
+      })
+      toast.success('Students enrolled', `${data.total_enrolled} student(s) added to ${cls.name}.`)
+      if (data.total_skipped > 0) {
+        toast.error('Some skipped', `${data.total_skipped} student(s) could not be enrolled.`)
+      }
+      setShowBulkEnroll(false)
+      fetchEnrolledStudents()
+      onUpdated?.()
+    } catch {
+      toast.error('Enrollment failed', 'Could not enroll students. Please try again.')
+    } finally {
+      setEnrolling(false)
+    }
+  }, [cls, selectedStudentIds, fetchEnrolledStudents, onUpdated])
+
+  const filteredStudents = useMemo(() => {
+    if (!studentSearch) return allStudents
+    const q = studentSearch.toLowerCase()
+    return allStudents.filter(s =>
+      s.full_name.toLowerCase().includes(q) || s.phone?.includes(studentSearch)
+    )
+  }, [allStudents, studentSearch])
+
+  // ── Render ──
 
   if (!isOpen || !cls) return null
 
@@ -248,13 +433,14 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDet
                   </button>
                   <button
                     onClick={handleSaveEdit}
+                    disabled={saving || !editName.trim()}
                     className={cn(
                       'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium',
-                      'bg-[var(--gold)] text-white hover:opacity-90',
-                      'transition-opacity duration-150',
+                      'bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] text-white hover:opacity-90',
+                      'transition-opacity duration-150 disabled:opacity-50',
                     )}
                   >
-                    Save
+                    {saving ? 'Saving...' : 'Save'}
                   </button>
                 </>
               )}
@@ -275,22 +461,191 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDet
                     'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
                   )}
                   style={{ fontFamily: 'var(--font-heading)' }}
+                  placeholder="Class name"
                 />
-                <input
-                  type="text"
-                  value={editSubject}
-                  onChange={(e) => setEditSubject(e.target.value)}
-                  placeholder="Subject"
-                  className={cn(
-                    'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
-                    'bg-[var(--input-bg)] border border-[var(--glass-border)]',
-                    'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Subject</label>
+                    <select
+                      value={editSubject}
+                      onChange={(e) => setEditSubject(e.target.value)}
+                      className={cn(
+                        'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
+                        'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                        'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                      )}
+                    >
+                      {SUBJECT_OPTIONS.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Teacher</label>
+                    <select
+                      value={editTeacherId}
+                      onChange={(e) => setEditTeacherId(e.target.value)}
+                      className={cn(
+                        'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
+                        'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                        'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                      )}
+                    >
+                      <option value="">None</option>
+                      {teachers.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Capacity</label>
+                    <input
+                      type="number"
+                      value={editCapacity}
+                      onChange={(e) => setEditCapacity(Number(e.target.value))}
+                      min={1}
+                      className={cn(
+                        'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
+                        'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                        'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Price (DA)</label>
+                    <input
+                      type="number"
+                      value={editPriceDa || ''}
+                      onChange={(e) => setEditPriceDa(Number(e.target.value))}
+                      placeholder="0"
+                      min={0}
+                      className={cn(
+                        'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
+                        'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                        'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                      )}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Group Name</label>
+                    <input
+                      type="text"
+                      value={editGroupName}
+                      onChange={(e) => setEditGroupName(e.target.value)}
+                      placeholder="A"
+                      className={cn(
+                        'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
+                        'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                        'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Academic Level</label>
+                    <input
+                      type="text"
+                      value={editAcademicLevel}
+                      onChange={(e) => setEditAcademicLevel(e.target.value)}
+                      placeholder="e.g. CM2"
+                      className={cn(
+                        'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
+                        'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                        'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                      )}
+                    />
+                  </div>
+                </div>
                 <div>
-                  <label className="block text-xs text-[var(--muted)] mb-1.5">
-                    Color
-                  </label>
+                  <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Class Type</label>
+                  <div className="flex rounded-xl overflow-hidden border border-[var(--glass-border)]">
+                    {(['weekly', 'temporary'] as const).map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setEditClassType(t)}
+                        className={cn(
+                          'flex-1 py-2 text-xs font-semibold transition-all duration-150',
+                          editClassType === t
+                            ? 'bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] text-white'
+                            : 'bg-[var(--input-bg)] text-[var(--muted)] hover:bg-[var(--glass)]',
+                        )}
+                      >
+                        {t === 'weekly' ? 'Weekly' : 'Temporary'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Dedicated Time</label>
+                  <input
+                    type="text"
+                    value={editDedicatedTime}
+                    onChange={(e) => setEditDedicatedTime(e.target.value)}
+                    placeholder="e.g. Mon/Wed 10:00-12:00"
+                    className={cn(
+                      'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
+                      'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                      'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                    )}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Billing Model</label>
+                  <div className="flex rounded-xl overflow-hidden border border-[var(--glass-border)]">
+                    {(['CREDIT_BASED', 'TIME_BASED'] as const).map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setEditBillingModel(m)}
+                        className={cn(
+                          'flex-1 py-2 text-xs font-semibold transition-all duration-150',
+                          editBillingModel === m
+                            ? 'bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] text-white'
+                            : 'bg-[var(--input-bg)] text-[var(--muted)] hover:bg-[var(--glass)]',
+                        )}
+                      >
+                        {m === 'CREDIT_BASED' ? 'Credit-Based' : 'Time-Based'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {editBillingModel === 'CREDIT_BASED' && (
+                  <div>
+                    <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Credits per Cycle</label>
+                    <input
+                      type="number"
+                      value={editCreditsPerCycle}
+                      onChange={(e) => setEditCreditsPerCycle(Number(e.target.value))}
+                      min={1}
+                      className={cn(
+                        'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
+                        'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                        'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                      )}
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Notes</label>
+                  <textarea
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    rows={2}
+                    placeholder="Optional notes..."
+                    className={cn(
+                      'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)] resize-none',
+                      'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                      'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                    )}
+                  />
+                </div>
+                {/* Color */}
+                <div>
+                  <label className="text-xs font-medium text-[var(--muted)] mb-1.5 block">Color</label>
                   <div className="flex gap-2">
                     {COLOR_PRESETS.map((preset) => (
                       <button
@@ -339,7 +694,31 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDet
                   >
                     {cls.subject}
                   </span>
+                  {cls.group_name && (
+                    <span className="text-xs text-[var(--muted)]">Group {cls.group_name}</span>
+                  )}
+                  {cls.academic_level && (
+                    <span className="text-xs text-[var(--muted)]">{cls.academic_level}</span>
+                  )}
+                  {cls.class_type && (
+                    <span
+                      className={cn(
+                        'text-[10px] font-medium px-2 py-0.5 rounded-full',
+                        cls.class_type === 'weekly'
+                          ? 'bg-[var(--emerald-soft)] text-[var(--emerald)]'
+                          : 'bg-[var(--gold-soft)] text-[var(--gold)]',
+                      )}
+                    >
+                      {cls.class_type === 'weekly' ? 'Weekly' : 'One-Time'}
+                    </span>
+                  )}
                 </div>
+                {cls.dedicated_time && (
+                  <p className="text-xs text-[var(--muted)] mt-1">{cls.dedicated_time}</p>
+                )}
+                {cls.notes && (
+                  <p className="text-xs text-[var(--muted)] mt-2">{cls.notes}</p>
+                )}
               </>
             )}
           </div>
@@ -355,7 +734,7 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDet
                 </span>
               </div>
               <p className="text-sm font-medium text-[var(--text)] truncate">
-                {cls.teacher_name || '—'}
+                {cls.teacher_name || 'Unassigned'}
               </p>
             </div>
 
@@ -481,44 +860,193 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete }: ClassDet
               >
                 Enrolled Students
               </h2>
-              <span className="text-xs text-[var(--muted)]">
-                {cls.enrolled_count} of {cls.capacity}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[var(--muted)]">
+                  {cls.enrolled_count} of {cls.capacity}
+                </span>
+                <button
+                  onClick={openBulkEnroll}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium',
+                    'bg-[var(--emerald-soft)] text-[var(--emerald)] border border-[var(--emerald)]/20',
+                    'hover:bg-[var(--emerald)]/20 active:scale-[0.98]',
+                    'transition-all duration-150',
+                  )}
+                >
+                  <UserPlus size={13} />
+                  Add Students
+                </button>
+              </div>
             </div>
 
-            {cls.enrolled_count === 0 ? (
+            {loadingStudents ? (
+              <div className="glass rounded-xl p-6 text-center">
+                <p className="text-sm text-[var(--muted)]">Loading students...</p>
+              </div>
+            ) : enrolledStudents.length === 0 ? (
               <div className="glass rounded-xl p-6 text-center">
                 <p className="text-sm text-[var(--muted)]">
                   No students enrolled yet.
                 </p>
+                <button
+                  onClick={openBulkEnroll}
+                  className={cn(
+                    'mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium',
+                    'bg-[var(--gold-soft)] text-[var(--gold)] border border-[var(--gold)]/20',
+                    'hover:bg-[var(--gold)]/20 active:scale-[0.98]',
+                    'transition-all duration-150',
+                  )}
+                >
+                  <UserPlus size={13} />
+                  Add Students
+                </button>
               </div>
             ) : (
               <div className="space-y-1">
-                {/* Placeholder students — in a real app these would come from an API */}
-                {Array.from({ length: Math.min(cls.enrolled_count, 20) }).map(
-                  (_, i) => (
+                {enrolledStudents.map((student) => (
+                  <div
+                    key={student.id}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--glass)] transition-colors"
+                  >
                     <div
-                      key={i}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[var(--glass)] transition-colors"
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                      style={{ backgroundColor: color }}
                     >
-                      <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                        style={{ backgroundColor: color }}
-                      >
-                        {String.fromCharCode(65 + (i % 26))}{String.fromCharCode(65 + ((i * 7) % 26))}
-                      </div>
-                      <span className="text-xs text-[var(--text)]">
-                        Student {i + 1}
-                      </span>
+                      {getInitials(student.full_name)}
                     </div>
-                  ),
-                )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-[var(--text)] truncate">
+                        {student.full_name}
+                      </p>
+                      {student.phone && (
+                        <p className="text-[10px] text-[var(--muted)]">{student.phone}</p>
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        'text-[10px] font-medium px-2 py-0.5 rounded-full',
+                        student.status === 'paid'
+                          ? 'bg-[var(--emerald-soft)] text-[var(--emerald)]'
+                          : student.status === 'overdue'
+                            ? 'bg-[var(--red-soft)] text-[var(--red)]'
+                            : 'bg-[var(--gold-soft)] text-[var(--gold)]',
+                      )}
+                    >
+                      {student.status}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* ── Bulk Enrollment Modal ──────────────── */}
+      {showBulkEnroll && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center"
+          style={{ background: 'rgba(10,10,10,.6)', backdropFilter: 'blur(8px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowBulkEnroll(false) }}
+        >
+          <div
+            className={cn(
+              'w-full max-w-md mx-4 p-5 rounded-2xl',
+              'bg-[var(--card-bg)] border border-[var(--glass-border)]',
+              'shadow-2xl animate-fade-in',
+            )}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-[var(--text)]" style={{ fontFamily: 'var(--font-heading)' }}>
+                Add Students to {cls.name}
+              </h3>
+              <button onClick={() => setShowBulkEnroll(false)} className="p-1 rounded-lg text-[var(--muted)] hover:bg-[var(--glass)]">
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="relative mb-3">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+              <input
+                type="text"
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                placeholder="Search students..."
+                className={cn(
+                  'w-full pl-9 pr-3 py-2 rounded-xl text-sm text-[var(--text)]',
+                  'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                  'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                )}
+              />
+            </div>
+
+            {/* Student list */}
+            <div className="max-h-60 overflow-y-auto space-y-1 mb-4">
+              {filteredStudents.length === 0 ? (
+                <p className="text-sm text-[var(--muted)] text-center py-4">
+                  No students available to enroll
+                </p>
+              ) : (
+                filteredStudents.map((student) => {
+                  const isSelected = selectedStudentIds.includes(student.id)
+                  return (
+                    <button
+                      key={student.id}
+                      type="button"
+                      onClick={() => toggleStudentSelection(student.id)}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-150',
+                        isSelected
+                          ? 'bg-[var(--emerald-soft)] border border-[var(--emerald)]/30'
+                          : 'bg-[var(--input-bg)] border border-[var(--glass-border)] hover:border-[var(--emerald)]/20',
+                      )}
+                    >
+                      <div className={cn(
+                        'w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all',
+                        isSelected
+                          ? 'bg-[var(--emerald)] border-[var(--emerald)]'
+                          : 'border-[var(--glass-border)]',
+                      )}>
+                        {isSelected && <Check size={12} className="text-white" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-[var(--text)] truncate">{student.full_name}</p>
+                        {student.phone && (
+                          <p className="text-[10px] text-[var(--muted)]">{student.phone}</p>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowBulkEnroll(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-[var(--input-bg)] text-[var(--muted)] border border-[var(--glass-border)]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkEnroll}
+                disabled={selectedStudentIds.length === 0 || enrolling}
+                className={cn(
+                  'flex-1 py-2.5 rounded-xl text-sm font-semibold text-white',
+                  'bg-gradient-to-r from-[#b3872a] to-[#0f6b4d]',
+                  'disabled:opacity-40 hover:opacity-90 active:scale-[0.98]',
+                  'transition-all duration-150',
+                )}
+              >
+                {enrolling ? 'Enrolling...' : `Add ${selectedStudentIds.length} Student${selectedStudentIds.length !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-

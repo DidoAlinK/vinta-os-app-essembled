@@ -45,6 +45,8 @@ MISSING_COLUMNS = [
     ("classes", "capacity", "INTEGER DEFAULT 20"),
     ("classes", "subject", "VARCHAR(100)"),
     ("classes", "is_active", "BOOLEAN DEFAULT 1"),
+    ("classes", "class_type", "VARCHAR(20) DEFAULT 'weekly'"),
+    ("classes", "dedicated_time", "VARCHAR(255)"),
 
     # ── sessions ──
     ("sessions", "status", "VARCHAR(20) DEFAULT 'scheduled'"),
@@ -187,6 +189,15 @@ REQUIRED_TABLES = {
             assigned_at DATETIME
         )
     """,
+    "teacher_subjects": """
+        CREATE TABLE IF NOT EXISTS teacher_subjects (
+            teacher_id VARCHAR(36) NOT NULL,
+            subject_id VARCHAR(36) NOT NULL,
+            PRIMARY KEY (teacher_id, subject_id),
+            FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE,
+            FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
+        )
+    """,
 }
 
 
@@ -206,7 +217,7 @@ def main():
         if not cur.fetchone():
             cur.execute(create_sql)
             created_tables += 1
-            print(f"  ✅ Created table: {table_name}")
+            print(f"  [OK] Created table: {table_name}")
 
     # 2. Add missing columns
     added_columns = 0
@@ -217,9 +228,9 @@ def main():
             try:
                 cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
                 added_columns += 1
-                print(f"  ✅ Added column: {table}.{column}")
+                print(f"  [OK] Added column: {table}.{column}")
             except sqlite3.OperationalError as e:
-                print(f"  ⚠️  Skipped {table}.{column}: {e}")
+                print(f"  [SKIP] {table}.{column}: {e}")
 
     conn.commit()
     conn.close()
