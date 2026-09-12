@@ -647,19 +647,18 @@ export function ClassesPage() {
   const [isAddRoomModalOpen, setIsAddRoomModalOpen] = useState(false)
 
   /* ── Fetch classes ── */
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      setIsClassLoading(true)
-      try {
-        const { data } = await api.get('/classes')
-        if (!cancelled) setClasses(data.classes ?? data ?? [])
-      } catch { /* backend unavailable */ }
-      finally { if (!cancelled) setIsClassLoading(false) }
-    }
-    load()
-    return () => { cancelled = true }
+  const fetchClasses = useCallback(async () => {
+    setIsClassLoading(true)
+    try {
+      const { data } = await api.get('/classes')
+      setClasses(data.classes ?? data ?? [])
+    } catch { /* backend unavailable */ }
+    finally { setIsClassLoading(false) }
   }, [])
+
+  useEffect(() => {
+    fetchClasses()
+  }, [fetchClasses])
 
   /* ── Fetch classrooms ── */
   const fetchClassrooms = useCallback(async () => {
@@ -813,7 +812,13 @@ export function ClassesPage() {
       </div>
 
       {/* Class Detail sidebar */}
-      <ClassDetail cls={selectedClass} isOpen={!!selectedClass} onClose={() => setSelectedClass(null)} onDelete={handleDeleteClass} />
+      <ClassDetail
+        cls={selectedClass}
+        isOpen={!!selectedClass}
+        onClose={() => setSelectedClass(null)}
+        onDelete={handleDeleteClass}
+        onUpdated={fetchClasses}
+      />
 
       {/* Modals */}
       <AddCourseGroupModal isOpen={isAddGroupModalOpen} onClose={() => setIsAddGroupModalOpen(false)} onAdd={handleAddClass} />

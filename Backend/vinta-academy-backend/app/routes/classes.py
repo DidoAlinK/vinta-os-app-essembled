@@ -245,6 +245,39 @@ def get_class(class_id):
     return jsonify(payload), 200
 
 
+@classes_bp.route("/classes/<class_id>/students", methods=["GET"])
+@jwt_required()
+@tenant_required
+def list_class_students(class_id):
+    """List all students enrolled in a specific class."""
+    from flask import g
+    from app.models.student import Student, Enrollment
+
+    cls = Class.query.filter_by(id=class_id, academy_id=g.current_academy_id).first()
+    if not cls:
+        return jsonify({"error": "Class not found"}), 404
+
+    enrollments = Enrollment.query.filter_by(class_id=class_id, status="active").all()
+    student_ids = [e.student_id for e in enrollments]
+    students = Student.query.filter(Student.id.in_(student_ids)).all() if student_ids else []
+
+    return jsonify({
+        "students": [
+            {
+                "id": s.id,
+                "full_name": s.full_name,
+                "first_name": s.first_name,
+                "last_name": s.last_name,
+                "phone": s.phone,
+                "status": s.status,
+                "enrollment_id": next((e.id for e in enrollments if e.student_id == s.id), None),
+            }
+            for s in students
+        ],
+        "total": len(students),
+    }), 200
+
+
 @classes_bp.route("/classes", methods=["POST"])
 @jwt_required()
 @tenant_required
