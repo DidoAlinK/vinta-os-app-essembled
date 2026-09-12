@@ -7,7 +7,7 @@ import sqlite3
 import os
 import sys
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "vinta_school_dev.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "instance", "vinta_school_dev.db")
 
 # All (table, column, definition) tuples that must exist
 MISSING_COLUMNS = [

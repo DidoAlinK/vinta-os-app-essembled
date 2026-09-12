@@ -694,9 +694,14 @@ def create_subject():
 def delete_subject(subject_id):
     """Delete a custom subject by ID."""
     from flask import g
+    from app.models.teacher import TeacherSubject
+
     subject = Subject.query.filter_by(id=subject_id, academy_id=g.current_academy_id).first()
     if not subject:
         return jsonify({"error": "Subject not found"}), 404
+
+    # Clean up teacher-subject junction records first
+    TeacherSubject.query.filter_by(subject_id=subject_id).delete()
 
     db.session.delete(subject)
     db.session.commit()
