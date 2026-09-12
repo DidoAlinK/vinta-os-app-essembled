@@ -9,7 +9,8 @@ from flask_jwt_extended import jwt_required
 from app.extensions import db
 from app.utils.decorators import tenant_required
 from app.utils.audit import log_activity
-from app.models.teacher import Teacher
+from app.models.teacher import Teacher, TeacherSubject
+from app.models.class_room import Subject
 from app.services import payroll_service
 from app.schemas.teachers import (
     CreateTeacherRequestSchema, UpdateTeacherRequestSchema,
@@ -48,6 +49,13 @@ def list_teachers():
             Session.date <= week_end,
         ).count()
 
+        # Subjects from junction table
+        subjects = [
+            {"id": ts.subject.id, "name": ts.subject.name, "color": ts.subject.color}
+            for ts in teacher.subject_links.all()
+            if ts.subject
+        ]
+
         result.append({
             "id": teacher.id,
             "first_name": teacher.first_name,
@@ -55,6 +63,7 @@ def list_teachers():
             "full_name": teacher.full_name,
             "phone": teacher.phone,
             "subject": teacher.subject,
+            "subjects": subjects,
             "contract_type": teacher.contract_type,
             "hourly_rate": teacher.hourly_rate,
             "per_student_rate": teacher.per_student_rate,
@@ -122,6 +131,13 @@ def get_teacher(teacher_id):
     # Payroll summary
     summary = payroll_service.get_teacher_summary(teacher_id, g.current_academy_id)
 
+    # Subjects from junction table
+    subjects = [
+        {"id": ts.subject.id, "name": ts.subject.name, "color": ts.subject.color}
+        for ts in teacher.subject_links.all()
+        if ts.subject
+    ]
+
     return jsonify({
         "id": teacher.id,
         "first_name": teacher.first_name,
@@ -129,6 +145,7 @@ def get_teacher(teacher_id):
         "full_name": teacher.full_name,
         "phone": teacher.phone,
         "subject": teacher.subject,
+        "subjects": subjects,
         "notes": teacher.notes,
         "contract_type": teacher.contract_type,
         "hourly_rate": teacher.hourly_rate,
@@ -168,6 +185,16 @@ def create_teacher():
         per_student_rate=data.get("per_student_rate", 0),
     )
     db.session.add(teacher)
+    db.session.flush()  # Get teacher.id for junction table
+
+    # Create subject links from subject_ids
+    subject_ids = data.get("subject_ids", [])
+    if subject_ids:
+        for sid in subject_ids:
+            subject = Subject.query.filter_by(id=sid, academy_id=g.current_academy_id).first()
+            if subject:
+                ts = TeacherSubject(teacher_id=teacher.id, subject_id=sid)
+                db.session.add(ts)
 
     log_activity(
         academy_id=g.current_academy_id,
@@ -208,6 +235,17 @@ def update_teacher(teacher_id):
                   "contract_type", "hourly_rate", "per_student_rate"):
         if field in data:
             setattr(teacher, field, data[field])
+
+    # Update subject links if subject_ids provided
+    if "subject_ids" in data:
+        # Delete existing links
+        TeacherSubject.query.filter_by(teacher_id=teacher.id).delete()
+        # Create new links
+        for sid in data["subject_ids"]:
+            subject = Subject.query.filter_by(id=sid, academy_id=g.current_academy_id).first()
+            if subject:
+                ts = TeacherSubject(teacher_id=teacher.id, subject_id=sid)
+                db.session.add(ts)
 
     db.session.commit()
     return jsonify({

@@ -88,6 +88,8 @@ function AddCourseGroupModal({
   const [capacity, setCapacity] = useState(20)
   const [color, setColor] = useState(COLOR_PRESETS[0].color)
   const [notes, setNotes] = useState('')
+  const [classType, setClassType] = useState<'weekly' | 'temporary'>('weekly')
+  const [dedicatedTime, setDedicatedTime] = useState('')
 
   // Billing fields
   const [academicLevel, setAcademicLevel] = useState('')
@@ -105,16 +107,24 @@ function AddCourseGroupModal({
 
   // Teachers
   const [teachers, setTeachers] = useState<TeacherOption[]>([])
+  const [subjectOptions, setSubjectOptions] = useState<string[]>([...SUBJECT_OPTIONS])
 
   useEffect(() => {
     if (!isOpen) return
     let cancelled = false
     async function load() {
       try {
-        const { data } = await api.get('/teachers')
+        const [teacherRes, subjectRes] = await Promise.all([
+          api.get('/teachers'),
+          api.get('/subjects').catch(() => ({ data: { subjects: [] } })),
+        ])
         if (!cancelled) {
-          const list = data.teachers ?? data ?? []
+          const list = teacherRes.data.teachers ?? teacherRes.data ?? []
           setTeachers(list.map((t: any) => ({ id: t.id, name: t.name })))
+          const subs = subjectRes.data.subjects ?? []
+          if (subs.length > 0) {
+            setSubjectOptions(subs.map((s: any) => s.name))
+          }
         }
       } catch { /* ignore */ }
     }
@@ -129,6 +139,8 @@ function AddCourseGroupModal({
     setCapacity(20)
     setColor(COLOR_PRESETS[0].color)
     setNotes('')
+    setClassType('weekly')
+    setDedicatedTime('')
     setAcademicLevel('')
     setGroupName('A')
     setBillingModel('CREDIT_BASED')
@@ -157,6 +169,8 @@ function AddCourseGroupModal({
       capacity,
       color,
       notes: notes.trim() || undefined,
+      class_type: classType,
+      dedicated_time: dedicatedTime.trim() || undefined,
       academic_level: academicLevel.trim() || undefined,
       group_name: groupName.trim() || 'A',
       billing_model: billingModel,
@@ -173,7 +187,7 @@ function AddCourseGroupModal({
     resetAll()
     onClose()
   }, [
-    name, subject, teacherId, capacity, color, notes,
+    name, subject, teacherId, capacity, color, notes, classType, dedicatedTime,
     academicLevel, groupName, billingModel, priceDa,
     creditsPerCycle, cycleWeekLimit, allowRollover, allowMakeups,
     accessDurationWeeks, maxGroupsIncluded, enforceAttendance, attendanceThreshold,
@@ -232,7 +246,7 @@ function AddCourseGroupModal({
               <div>
                 <label className={labelCls} style={{ color: 'var(--muted)' }}>Subject</label>
                 <select value={subject} onChange={e => setSubject(e.target.value)} className={inputCls}>
-                  {SUBJECT_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                  {subjectOptions.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
 
@@ -251,6 +265,40 @@ function AddCourseGroupModal({
               <div>
                 <label className={labelCls} style={{ color: 'var(--muted)' }}>Capacity</label>
                 <input type="number" value={capacity} onChange={e => setCapacity(Number(e.target.value))} min={1} className={inputCls} />
+              </div>
+
+              {/* Class Type */}
+              <div>
+                <label className={labelCls} style={{ color: 'var(--muted)' }}>Class Type</label>
+                <div className="flex rounded-xl overflow-hidden border border-[var(--glass-border)]">
+                  {(['weekly', 'temporary'] as const).map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setClassType(t)}
+                      className={cn(
+                        'flex-1 py-2 text-xs font-semibold transition-all duration-150',
+                        classType === t
+                          ? 'bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] text-white'
+                          : 'bg-[var(--input-bg)] text-[var(--muted)] hover:bg-[var(--glass)]',
+                      )}
+                    >
+                      {t === 'weekly' ? 'Weekly' : 'Temporary'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dedicated Time */}
+              <div>
+                <label className={labelCls} style={{ color: 'var(--muted)' }}>Dedicated Time</label>
+                <input
+                  type="text"
+                  value={dedicatedTime}
+                  onChange={e => setDedicatedTime(e.target.value)}
+                  placeholder="e.g. Mon/Wed 10:00-12:00"
+                  className={inputCls}
+                />
               </div>
 
               {/* Color */}

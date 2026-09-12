@@ -25,6 +25,7 @@ export interface Teacher {
   last_name: string
   phone?: string
   subject?: string
+  subjects?: { id: string; name: string; color: string }[]
   notes?: string
   contract_type: 'hourly' | 'per_student'
   hourly_rate?: number

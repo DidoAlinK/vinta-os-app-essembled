@@ -52,6 +52,10 @@ export interface Class {
   created_at: string
   updated_at: string
 
+  // ── Class type & scheduling ──
+  class_type?: 'weekly' | 'temporary'
+  dedicated_time?: string // e.g. "Mon/Wed 10:00-12:00"
+
   // ── Course-group extensions (optional for backend back-compat) ──
   group_name?: string // A / B / C
   academic_level?: string
@@ -162,6 +166,8 @@ export interface CreateClassRequest {
   teacher_id?: string
   capacity: number
   notes?: string
+  class_type?: 'weekly' | 'temporary'
+  dedicated_time?: string
   // Course-group fields
   group_name?: string
   academic_level?: string
@@ -184,6 +190,8 @@ export interface UpdateClassRequest {
   teacher_id?: string
   capacity?: number
   notes?: string
+  class_type?: 'weekly' | 'temporary'
+  dedicated_time?: string
   group_name?: string
   academic_level?: string
   billing_model?: BillingModel

@@ -124,6 +124,8 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete, onUpdated 
   const [editCreditsPerCycle, setEditCreditsPerCycle] = useState(4)
   const [editGroupName, setEditGroupName] = useState('')
   const [editAcademicLevel, setEditAcademicLevel] = useState('')
+  const [editClassType, setEditClassType] = useState<'weekly' | 'temporary'>('weekly')
+  const [editDedicatedTime, setEditDedicatedTime] = useState('')
   const [saving, setSaving] = useState(false)
 
   // ── Teachers ──
@@ -154,6 +156,8 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete, onUpdated 
       setEditCreditsPerCycle(cls.credits_per_cycle || 4)
       setEditGroupName(cls.group_name || '')
       setEditAcademicLevel(cls.academic_level || '')
+      setEditClassType(cls.class_type || 'weekly')
+      setEditDedicatedTime(cls.dedicated_time || '')
     }
     setIsEditing(false)
   }, [cls?.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -230,6 +234,8 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete, onUpdated 
     setEditCreditsPerCycle(cls.credits_per_cycle || 4)
     setEditGroupName(cls.group_name || '')
     setEditAcademicLevel(cls.academic_level || '')
+    setEditClassType(cls.class_type || 'weekly')
+    setEditDedicatedTime(cls.dedicated_time || '')
     setIsEditing(true)
   }, [cls])
 
@@ -247,6 +253,8 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete, onUpdated 
       setEditCreditsPerCycle(cls.credits_per_cycle || 4)
       setEditGroupName(cls.group_name || '')
       setEditAcademicLevel(cls.academic_level || '')
+      setEditClassType(cls.class_type || 'weekly')
+      setEditDedicatedTime(cls.dedicated_time || '')
     }
   }, [cls])
 
@@ -266,6 +274,8 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete, onUpdated 
         credits_per_cycle: editBillingModel === 'CREDIT_BASED' ? editCreditsPerCycle : undefined,
         group_name: editGroupName.trim() || undefined,
         academic_level: editAcademicLevel.trim() || undefined,
+        class_type: editClassType,
+        dedicated_time: editDedicatedTime.trim() || null,
       })
       toast.success('Class updated', 'Changes have been saved.')
       setIsEditing(false)
@@ -275,7 +285,7 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete, onUpdated 
     } finally {
       setSaving(false)
     }
-  }, [cls, editName, editSubject, editColor, editCapacity, editTeacherId, editNotes, editPriceDa, editBillingModel, editCreditsPerCycle, editGroupName, editAcademicLevel, onUpdated])
+  }, [cls, editName, editSubject, editColor, editCapacity, editTeacherId, editNotes, editPriceDa, editBillingModel, editCreditsPerCycle, editGroupName, editAcademicLevel, editClassType, editDedicatedTime, onUpdated])
 
   const handleDelete = useCallback(async () => {
     if (!cls) return
@@ -550,6 +560,40 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete, onUpdated 
                   </div>
                 </div>
                 <div>
+                  <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Class Type</label>
+                  <div className="flex rounded-xl overflow-hidden border border-[var(--glass-border)]">
+                    {(['weekly', 'temporary'] as const).map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setEditClassType(t)}
+                        className={cn(
+                          'flex-1 py-2 text-xs font-semibold transition-all duration-150',
+                          editClassType === t
+                            ? 'bg-gradient-to-r from-[#b3872a] to-[#0f6b4d] text-white'
+                            : 'bg-[var(--input-bg)] text-[var(--muted)] hover:bg-[var(--glass)]',
+                        )}
+                      >
+                        {t === 'weekly' ? 'Weekly' : 'Temporary'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Dedicated Time</label>
+                  <input
+                    type="text"
+                    value={editDedicatedTime}
+                    onChange={(e) => setEditDedicatedTime(e.target.value)}
+                    placeholder="e.g. Mon/Wed 10:00-12:00"
+                    className={cn(
+                      'w-full px-3 py-2 rounded-lg text-sm text-[var(--text)]',
+                      'bg-[var(--input-bg)] border border-[var(--glass-border)]',
+                      'outline-none focus:ring-2 focus:ring-[var(--gold)]/30',
+                    )}
+                  />
+                </div>
+                <div>
                   <label className="text-xs font-medium text-[var(--muted)] mb-1 block">Billing Model</label>
                   <div className="flex rounded-xl overflow-hidden border border-[var(--glass-border)]">
                     {(['CREDIT_BASED', 'TIME_BASED'] as const).map(m => (
@@ -656,7 +700,22 @@ export default function ClassDetail({ cls, isOpen, onClose, onDelete, onUpdated 
                   {cls.academic_level && (
                     <span className="text-xs text-[var(--muted)]">{cls.academic_level}</span>
                   )}
+                  {cls.class_type && (
+                    <span
+                      className={cn(
+                        'text-[10px] font-medium px-2 py-0.5 rounded-full',
+                        cls.class_type === 'weekly'
+                          ? 'bg-[var(--emerald-soft)] text-[var(--emerald)]'
+                          : 'bg-[var(--gold-soft)] text-[var(--gold)]',
+                      )}
+                    >
+                      {cls.class_type === 'weekly' ? 'Weekly' : 'One-Time'}
+                    </span>
+                  )}
                 </div>
+                {cls.dedicated_time && (
+                  <p className="text-xs text-[var(--muted)] mt-1">{cls.dedicated_time}</p>
+                )}
                 {cls.notes && (
                   <p className="text-xs text-[var(--muted)] mt-2">{cls.notes}</p>
                 )}

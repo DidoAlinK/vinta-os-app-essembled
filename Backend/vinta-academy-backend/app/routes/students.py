@@ -64,7 +64,7 @@ def get_student(student_id):
 def create_student():
     """
     Create a new student with default guardian and billing.
-    Body: { first_name, last_name, phone?, parent_phone?, notes?, class_id? }
+    Body: { first_name, last_name, phone?, parent_phone?, notes?, class_ids?: [string] }
     """
     from flask import g
     import logging
@@ -82,9 +82,9 @@ def create_student():
             created_by=g.current_user.id,
         )
 
-        # Enroll student in class if class_id was provided
-        class_id = data.get("class_id")
-        if class_id:
+        # Enroll student in classes if class_ids was provided
+        class_ids = data.get("class_ids", [])
+        for class_id in class_ids:
             student_service.enroll_student(
                 student_id=student.id,
                 class_id=class_id,

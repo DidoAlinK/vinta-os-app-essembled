@@ -76,6 +76,16 @@ class Class(db.Model):
     max_groups_included: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     enforce_attendance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     attendance_threshold: Mapped[float] = mapped_column(Float, default=0.75, nullable=False)
+    # ── Class type & scheduling ──
+    class_type: Mapped[str] = mapped_column(
+        SAEnum("weekly", "temporary", name="class_type_enum"),
+        default="weekly", nullable=False,
+        comment="weekly = recurring same time, temporary = one-time"
+    )
+    dedicated_time: Mapped[str | None] = mapped_column(
+        String(255), nullable=True,
+        comment="Display string for dedicated time, e.g. Mon/Wed 10:00-12:00"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )

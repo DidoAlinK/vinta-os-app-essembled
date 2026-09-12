@@ -45,6 +45,8 @@ MISSING_COLUMNS = [
     ("classes", "capacity", "INTEGER DEFAULT 20"),
     ("classes", "subject", "VARCHAR(100)"),
     ("classes", "is_active", "BOOLEAN DEFAULT 1"),
+    ("classes", "class_type", "VARCHAR(20) DEFAULT 'weekly'"),
+    ("classes", "dedicated_time", "VARCHAR(255)"),
 
     # ── sessions ──
     ("sessions", "status", "VARCHAR(20) DEFAULT 'scheduled'"),
@@ -185,6 +187,15 @@ REQUIRED_TABLES = {
             session_id VARCHAR(36),
             room_name VARCHAR(100),
             assigned_at DATETIME
+        )
+    """,
+    "teacher_subjects": """
+        CREATE TABLE IF NOT EXISTS teacher_subjects (
+            teacher_id VARCHAR(36) NOT NULL,
+            subject_id VARCHAR(36) NOT NULL,
+            PRIMARY KEY (teacher_id, subject_id),
+            FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE,
+            FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
         )
     """,
 }
