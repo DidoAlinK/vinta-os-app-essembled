@@ -2,6 +2,7 @@
 Vinta School OS — Model Exports
 Centralized imports for Flask-Migrate and SQLAlchemy model discovery.
 """
+
 from app.models.academy import Academy, AcademySettings, Subscription  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.student import Student, Guardian, Enrollment  # noqa: F401

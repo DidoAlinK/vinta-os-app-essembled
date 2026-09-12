@@ -2,6 +2,7 @@
 Vinta School OS — Student Models
 Student, Guardian (1:N), Enrollment (M:N with Class).
 """
+
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import String, Text, Boolean, ForeignKey, DateTime, Enum as SAEnum
@@ -40,16 +41,25 @@ class Student(db.Model):
     # Relationships
     academy = relationship("Academy", back_populates="students")
     guardians = relationship(
-        "Guardian", back_populates="student", lazy="dynamic", cascade="all, delete-orphan"
+        "Guardian",
+        back_populates="student",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
     )
     enrollments = relationship(
-        "Enrollment", back_populates="student", lazy="dynamic", cascade="all, delete-orphan"
+        "Enrollment",
+        back_populates="student",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
     )
     session_students = relationship(
         "SessionStudent", back_populates="student", lazy="dynamic"
     )
     billings = relationship(
-        "StudentBilling", back_populates="student", lazy="dynamic", cascade="all, delete-orphan"
+        "StudentBilling",
+        back_populates="student",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
     )
 
     @property
@@ -107,7 +117,11 @@ class Enrollment(db.Model):
     )
     status: Mapped[str] = mapped_column(
         SAEnum(
-            "active", "withdrawn", "expired", "overdue", "transferred",
+            "active",
+            "withdrawn",
+            "expired",
+            "overdue",
+            "transferred",
             name="enrollment_status_enum",
         ),
         default="active",

@@ -2,6 +2,7 @@
 Vinta School OS — Students Blueprint
 /api/students — CRUD, Guardians, Profile Drawer, Enrollment
 """
+
 from flask_smorest import Blueprint
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required
@@ -10,9 +11,15 @@ from app.utils.decorators import tenant_required
 from app.utils.audit import log_activity
 from app.services import student_service
 from app.schemas.students import (
-    CreateStudentRequestSchema, UpdateStudentRequestSchema, EnrollStudentRequestSchema,
-    AddGuardianRequestSchema, StudentListResponseSchema, StudentStatsResponseSchema,
-    StudentProfileResponseSchema, CreateStudentResponseSchema, EnrollResponseSchema,
+    CreateStudentRequestSchema,
+    UpdateStudentRequestSchema,
+    EnrollStudentRequestSchema,
+    AddGuardianRequestSchema,
+    StudentListResponseSchema,
+    StudentStatsResponseSchema,
+    StudentProfileResponseSchema,
+    CreateStudentResponseSchema,
+    EnrollResponseSchema,
 )
 from app.schemas.base import ErrorSchema, MessageSchema
 
@@ -28,9 +35,14 @@ def list_students():
     Query params: page, per_page
     """
     from flask import g
+
     page = request.args.get("page", 1, type=int)
     from flask import current_app
-    per_page = min(request.args.get("per_page", 50, type=int), current_app.config.get("MAX_PAGE_SIZE", 100))
+
+    per_page = min(
+        request.args.get("per_page", 50, type=int),
+        current_app.config.get("MAX_PAGE_SIZE", 100),
+    )
 
     result = student_service.list_students(g.current_academy_id, page, per_page)
     return jsonify(result), 200
@@ -42,6 +54,7 @@ def list_students():
 def get_stats():
     """Get aggregate student statistics for the stats rail."""
     from flask import g
+
     stats = student_service.get_student_stats(g.current_academy_id)
     return jsonify(stats), 200
 
@@ -52,6 +65,7 @@ def get_stats():
 def get_student(student_id):
     """Get a single student with all related data (profile drawer)."""
     from flask import g
+
     result = student_service.get_student(student_id, g.current_academy_id)
     if not result:
         return jsonify({"error": "Student not found"}), 404
@@ -68,6 +82,7 @@ def create_student():
     """
     from flask import g
     import logging
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Request body is required"}), 400
@@ -93,12 +108,17 @@ def create_student():
             )
 
         db.session.commit()
-        return jsonify({
-            "id": student.id,
-            "first_name": student.first_name,
-            "last_name": student.last_name,
-            "full_name": student.full_name,
-        }), 201
+        return (
+            jsonify(
+                {
+                    "id": student.id,
+                    "first_name": student.first_name,
+                    "last_name": student.last_name,
+                    "full_name": student.full_name,
+                }
+            ),
+            201,
+        )
     except ValueError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
@@ -114,6 +134,7 @@ def create_student():
 def update_student(student_id):
     """Update student profile fields."""
     from flask import g
+
     data = request.get_json()
     if not data:
         return jsonify({"error": "Request body is required"}), 400
@@ -123,11 +144,16 @@ def update_student(student_id):
         return jsonify({"error": "Student not found"}), 404
 
     db.session.commit()
-    return jsonify({
-        "id": student.id,
-        "first_name": student.first_name,
-        "last_name": student.last_name,
-    }), 200
+    return (
+        jsonify(
+            {
+                "id": student.id,
+                "first_name": student.first_name,
+                "last_name": student.last_name,
+            }
+        ),
+        200,
+    )
 
 
 @students_bp.route("/<student_id>", methods=["DELETE"])
@@ -136,6 +162,7 @@ def update_student(student_id):
 def delete_student(student_id):
     """Delete student and cascade withdraw enrollments."""
     from flask import g
+
     success = student_service.delete_student(
         student_id, g.current_academy_id, g.current_user.id
     )
@@ -155,6 +182,7 @@ def enroll_student(student_id):
     Body: { class_id }
     """
     from flask import g
+
     data = request.get_json()
     if not data or not data.get("class_id"):
         return jsonify({"error": "class_id is required"}), 400
@@ -164,12 +192,17 @@ def enroll_student(student_id):
     )
     db.session.commit()
 
-    return jsonify({
-        "id": enrollment.id,
-        "student_id": enrollment.student_id,
-        "class_id": enrollment.class_id,
-        "status": enrollment.status,
-    }), 201
+    return (
+        jsonify(
+            {
+                "id": enrollment.id,
+                "student_id": enrollment.student_id,
+                "class_id": enrollment.class_id,
+                "status": enrollment.status,
+            }
+        ),
+        201,
+    )
 
 
 @students_bp.route("/<student_id>/guardians", methods=["GET"])
@@ -180,23 +213,30 @@ def list_guardians(student_id):
     from flask import g
     from app.models.student import Student, Guardian
 
-    student = Student.query.filter_by(id=student_id, academy_id=g.current_academy_id).first()
+    student = Student.query.filter_by(
+        id=student_id, academy_id=g.current_academy_id
+    ).first()
     if not student:
         return jsonify({"error": "Student not found"}), 404
 
     guardians = Guardian.query.filter_by(student_id=student_id).all()
-    return jsonify({
-        "guardians": [
+    return (
+        jsonify(
             {
-                "id": guard.id,
-                "name": guard.name,
-                "relationship": guard.relationship_type,
-                "phone": guard.phone,
-                "is_emergency": guard.is_emergency,
+                "guardians": [
+                    {
+                        "id": guard.id,
+                        "name": guard.name,
+                        "relationship": guard.relationship_type,
+                        "phone": guard.phone,
+                        "is_emergency": guard.is_emergency,
+                    }
+                    for guard in guardians
+                ]
             }
-            for guard in guardians
-        ]
-    }), 200
+        ),
+        200,
+    )
 
 
 @students_bp.route("/<student_id>/guardians", methods=["POST"])
@@ -211,7 +251,9 @@ def add_guardian(student_id):
     import uuid
     from app.models.student import Student, Guardian
 
-    student = Student.query.filter_by(id=student_id, academy_id=g.current_academy_id).first()
+    student = Student.query.filter_by(
+        id=student_id, academy_id=g.current_academy_id
+    ).first()
     if not student:
         return jsonify({"error": "Student not found"}), 404
 
@@ -230,9 +272,14 @@ def add_guardian(student_id):
     db.session.add(guardian)
     db.session.commit()
 
-    return jsonify({
-        "id": guardian.id,
-        "name": guardian.name,
-        "relationship": guardian.relationship_type,
-        "phone": guardian.phone,
-    }), 201
+    return (
+        jsonify(
+            {
+                "id": guardian.id,
+                "name": guardian.name,
+                "relationship": guardian.relationship_type,
+                "phone": guardian.phone,
+            }
+        ),
+        201,
+    )

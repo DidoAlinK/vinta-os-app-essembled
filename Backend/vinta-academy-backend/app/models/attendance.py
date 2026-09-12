@@ -2,10 +2,14 @@
 Vinta School OS — Attendance Model
 SessionStudent: tracks check-in/out, payment snapshot per session per student.
 """
+
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
-    String, Boolean, ForeignKey, DateTime,
+    String,
+    Boolean,
+    ForeignKey,
+    DateTime,
     Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -33,19 +37,26 @@ class SessionStudent(db.Model):
     checked_in_at: Mapped[datetime | None] = mapped_column(DateTime)
     checked_out_at: Mapped[datetime | None] = mapped_column(DateTime)
     checked_in_by: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("users.id"), nullable=True,
-        comment="Which staff member logged the check-in"
+        String(36),
+        ForeignKey("users.id"),
+        nullable=True,
+        comment="Which staff member logged the check-in",
     )
     status: Mapped[str] = mapped_column(
-        String(20), default="PRESENT", nullable=False,
+        String(20),
+        default="PRESENT",
+        nullable=False,
         comment="PRESENT|ABSENT (kept in sync with is_present)",
     )
     is_group_swap: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False,
+        Boolean,
+        default=False,
+        nullable=False,
         comment="True when attendance counts for a different group (swap/makeup)",
     )
     timestamp: Mapped[datetime | None] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc),
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
         comment="When attendance was recorded",
     )
     payment_status: Mapped[str] = mapped_column(

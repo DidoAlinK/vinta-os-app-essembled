@@ -2,9 +2,18 @@
 Vinta School OS — Academy & Tenant Models
 Academy (tenant root), AcademySettings (singleton), Subscription (tier gating).
 """
+
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, Text, Boolean, Enum as SAEnum, ForeignKey, DateTime
+from sqlalchemy import (
+    String,
+    Integer,
+    Text,
+    Boolean,
+    Enum as SAEnum,
+    ForeignKey,
+    DateTime,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.extensions import db
 
@@ -22,7 +31,9 @@ class Academy(db.Model):
     email: Mapped[str | None] = mapped_column(String(255))
     address: Mapped[str | None] = mapped_column(String(500))
     weekend_day: Mapped[int] = mapped_column(
-        Integer, default=5, comment="Day-of-week considered weekend (5=Friday for Algeria)"
+        Integer,
+        default=5,
+        comment="Day-of-week considered weekend (5=Friday for Algeria)",
     )
     current_term: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(
@@ -41,9 +52,15 @@ class Academy(db.Model):
     classrooms = relationship("Classroom", back_populates="academy", lazy="dynamic")
     classes = relationship("Class", back_populates="academy", lazy="dynamic")
     sessions = relationship("Session", back_populates="academy", lazy="dynamic")
-    payment_plans = relationship("PaymentPlan", back_populates="academy", lazy="dynamic")
-    activity_logs = relationship("ActivityLog", back_populates="academy", lazy="dynamic")
-    notifications = relationship("Notification", back_populates="academy", lazy="dynamic")
+    payment_plans = relationship(
+        "PaymentPlan", back_populates="academy", lazy="dynamic"
+    )
+    activity_logs = relationship(
+        "ActivityLog", back_populates="academy", lazy="dynamic"
+    )
+    notifications = relationship(
+        "Notification", back_populates="academy", lazy="dynamic"
+    )
     subjects = relationship("Subject", back_populates="academy", lazy="dynamic")
 
     settings = relationship("AcademySettings", back_populates="academy", uselist=False)
