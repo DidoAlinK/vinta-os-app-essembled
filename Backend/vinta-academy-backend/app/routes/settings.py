@@ -73,15 +73,40 @@ def update_academy():
 
         academy_id = g.current_academy_id
 
-        # Delete all related data
-        for model in [SessionStudent, TeacherHoursLog, TeacherPayroll, PaymentLog,
-                      StudentBilling, PaymentPlan, Enrollment, Session, Schedule,
-                      Class, Subject, Classroom, Teacher, Guardian, Student,
-                      ActivityLog, Notification]:
-            model.query.filter_by(academy_id=academy_id).delete() if hasattr(model, 'academy_id') else None
-            # Some models use academy_id indirectly
-            if model == SessionStudent:
-                continue  # cascade from sessions
+        # Collect IDs for cascade deletion (some tables lack academy_id)
+        student_ids = [s.id for s in Student.query.filter_by(academy_id=academy_id).all()]
+        teacher_ids = [t.id for t in Teacher.query.filter_by(academy_id=academy_id).all()]
+        class_ids = [c.id for c in Class.query.filter_by(academy_id=academy_id).all()]
+
+        # Step 1: Delete leaf records (no academy_id — use FK cascade)
+        from app.models.billing import StudentSubscription, PayoutRecord, RevenueEntry
+        if student_ids:
+            # Collect billing IDs before deleting billings
+            billing_ids = [b.id for b in StudentBilling.query.filter(StudentBilling.student_id.in_(student_ids)).all()]
+            SessionStudent.query.filter(SessionStudent.student_id.in_(student_ids)).delete(synchronize_session=False)
+            if billing_ids:
+                PaymentLog.query.filter(PaymentLog.student_billing_id.in_(billing_ids)).delete(synchronize_session=False)
+            StudentBilling.query.filter(StudentBilling.student_id.in_(student_ids)).delete(synchronize_session=False)
+            Enrollment.query.filter(Enrollment.student_id.in_(student_ids)).delete(synchronize_session=False)
+            Guardian.query.filter(Guardian.student_id.in_(student_ids)).delete(synchronize_session=False)
+        if teacher_ids:
+            TeacherHoursLog.query.filter(TeacherHoursLog.teacher_id.in_(teacher_ids)).delete(synchronize_session=False)
+            TeacherPayroll.query.filter(TeacherPayroll.teacher_id.in_(teacher_ids)).delete(synchronize_session=False)
+
+        # Step 2: Delete records with academy_id
+        Session.query.filter_by(academy_id=academy_id).delete()
+        Schedule.query.filter(Schedule.class_id.in_(class_ids)).delete(synchronize_session=False) if class_ids else None
+        PaymentPlan.query.filter_by(academy_id=academy_id).delete()
+        Class.query.filter_by(academy_id=academy_id).delete()
+        Subject.query.filter_by(academy_id=academy_id).delete()
+        Classroom.query.filter_by(academy_id=academy_id).delete()
+        Teacher.query.filter_by(academy_id=academy_id).delete()
+        Student.query.filter_by(academy_id=academy_id).delete()
+        ActivityLog.query.filter_by(academy_id=academy_id).delete()
+        Notification.query.filter_by(academy_id=academy_id).delete()
+        StudentSubscription.query.filter_by(academy_id=academy_id).delete()
+        PayoutRecord.query.filter_by(academy_id=academy_id).delete()
+        RevenueEntry.query.filter_by(academy_id=academy_id).delete()
 
         # Delete academy settings and subscription
         AcademySettings.query.filter_by(academy_id=academy_id).delete()
@@ -483,19 +508,43 @@ def reset_academy_data():
 
     academy_id = g.current_academy_id
 
-    # Delete in dependency order — only models that actually have academy_id
-    # Children first (Session, PaymentPlan, StudentBilling), then parents
+    # Collect IDs for cascade deletion (some tables lack academy_id)
+    student_ids = [s.id for s in Student.query.filter_by(academy_id=academy_id).all()]
+    teacher_ids = [t.id for t in Teacher.query.filter_by(academy_id=academy_id).all()]
+    class_ids = [c.id for c in Class.query.filter_by(academy_id=academy_id).all()]
+
+    # Step 1: Delete leaf records (no academy_id — use FK cascade)
+    from app.models.billing import PaymentLog, StudentSubscription, PayoutRecord, RevenueEntry
+    from app.models.attendance import SessionStudent
+    from app.models.teacher import TeacherHoursLog, TeacherPayroll
+    from app.models.scheduling import Schedule
+    from app.models.student import Enrollment, Guardian
+    if student_ids:
+        billing_ids = [b.id for b in StudentBilling.query.filter(StudentBilling.student_id.in_(student_ids)).all()]
+        SessionStudent.query.filter(SessionStudent.student_id.in_(student_ids)).delete(synchronize_session=False)
+        if billing_ids:
+            PaymentLog.query.filter(PaymentLog.student_billing_id.in_(billing_ids)).delete(synchronize_session=False)
+        StudentBilling.query.filter(StudentBilling.student_id.in_(student_ids)).delete(synchronize_session=False)
+        Enrollment.query.filter(Enrollment.student_id.in_(student_ids)).delete(synchronize_session=False)
+        Guardian.query.filter(Guardian.student_id.in_(student_ids)).delete(synchronize_session=False)
+    if teacher_ids:
+        TeacherHoursLog.query.filter(TeacherHoursLog.teacher_id.in_(teacher_ids)).delete(synchronize_session=False)
+        TeacherPayroll.query.filter(TeacherPayroll.teacher_id.in_(teacher_ids)).delete(synchronize_session=False)
+
+    # Step 2: Delete records with academy_id
     Session.query.filter_by(academy_id=academy_id).delete()
-    StudentBilling.query.filter_by(academy_id=academy_id).delete()
-    PaymentPlan.query.filter_by(academy_id=academy_id).delete()
-    Schedule.query.filter_by(academy_id=academy_id).delete()
+    Schedule.query.filter(Schedule.class_id.in_(class_ids)).delete(synchronize_session=False) if class_ids else None
     Class.query.filter_by(academy_id=academy_id).delete()
     Subject.query.filter_by(academy_id=academy_id).delete()
     Classroom.query.filter_by(academy_id=academy_id).delete()
     Teacher.query.filter_by(academy_id=academy_id).delete()
     Student.query.filter_by(academy_id=academy_id).delete()
+    PaymentPlan.query.filter_by(academy_id=academy_id).delete()
     ActivityLog.query.filter_by(academy_id=academy_id).delete()
     Notification.query.filter_by(academy_id=academy_id).delete()
+    StudentSubscription.query.filter_by(academy_id=academy_id).delete()
+    PayoutRecord.query.filter_by(academy_id=academy_id).delete()
+    RevenueEntry.query.filter_by(academy_id=academy_id).delete()
 
     log_activity(
         academy_id=academy_id,
